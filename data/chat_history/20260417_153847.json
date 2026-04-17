@@ -1,0 +1,112 @@
+[
+  {
+    "role": "user",
+    "content": "turn on blueetooth",
+    "time": "2026-04-17T15:39:04.053694"
+  },
+  {
+    "role": "helios",
+    "content": "Bluetooth turned ON successfully.",
+    "time": "2026-04-17T15:39:16.567251"
+  },
+  {
+    "role": "user",
+    "content": "turn oof wifi",
+    "time": "2026-04-17T15:39:32.157762"
+  },
+  {
+    "role": "helios",
+    "content": "Wi-Fi (Wi-Fi) turned OFF.",
+    "time": "2026-04-17T15:39:45.122754"
+  },
+  {
+    "role": "user",
+    "content": "switch on wifi",
+    "time": "2026-04-17T15:39:54.538254"
+  },
+  {
+    "role": "helios",
+    "content": "Wi-Fi (Wi-Fi) turned ON. Status: Up",
+    "time": "2026-04-17T15:40:05.646873"
+  },
+  {
+    "role": "user",
+    "content": "open project folder",
+    "time": "2026-04-17T15:40:30.075008"
+  },
+  {
+    "role": "user",
+    "content": "move file called \"h1\" from downloads to desktop",
+    "time": "2026-04-17T15:41:39.790665"
+  },
+  {
+    "role": "user",
+    "content": "move file called \"h1.txt\" from downloads to desktop",
+    "time": "2026-04-17T15:42:08.505286"
+  },
+  {
+    "role": "helios",
+    "content": "Moved: h1.txt\n  From: C:\\Users\\bhara\\Downloads\n  To:   C:\\Users\\bhara\\Desktop",
+    "time": "2026-04-17T15:42:15.701376"
+  },
+  {
+    "role": "user",
+    "content": "order a pizza",
+    "time": "2026-04-17T15:43:21.054834"
+  },
+  {
+    "role": "helios",
+    "content": "Sure! Where should I order pizza from?\nReply: Swiggy or Zomato",
+    "time": "2026-04-17T15:43:26.796996"
+  },
+  {
+    "role": "user",
+    "content": "swiggy",
+    "time": "2026-04-17T15:43:30.957398"
+  },
+  {
+    "role": "helios",
+    "content": "Got it — Swiggy. What's your delivery location?",
+    "time": "2026-04-17T15:43:30.969516"
+  },
+  {
+    "role": "user",
+    "content": "hyderabad",
+    "time": "2026-04-17T15:43:35.791503"
+  },
+  {
+    "role": "helios",
+    "content": "What's your budget? (e.g. 200, 500, or 'any')",
+    "time": "2026-04-17T15:43:35.802033"
+  },
+  {
+    "role": "user",
+    "content": "200",
+    "time": "2026-04-17T15:43:38.930350"
+  },
+  {
+    "role": "helios",
+    "content": "Opening Swiggy to order: pizza\n  Location: hyderabad\n  Budget:   200\n\nSwiggy search results are now open in your browser.\nSelect a restaurant, add to cart, and place your order!",
+    "time": "2026-04-17T15:43:39.049221"
+  },
+  {
+    "role": "user",
+    "content": "write a letter to principal for taking leave 2 days",
+    "time": "2026-04-17T15:44:26.101035"
+  },
+  {
+    "role": "helios",
+    "content": "Okay, here’s a draft letter you can adapt:\n\n[Your Name]\n[Your Class]\n[Date]\n\nDear Principal [Principal’s Last Name],\n\nI am writing to request a leave of absence from school for two days, on [Start Date] and [End Date]. [Briefly state reason for leave - e.g., due to a family matter/personal reasons].\n\nI will ensure that I catch up on any missed coursework upon my return.\n\nThank you for your consideration.\n\nSincerely,\n[Your Name]\n\nWould you like me to format this letter with a more formal tone or perhaps include a specific reason for your leave? I can also search for examples of leave letters online. \n[Search Web: “Example leave letter”]\n(via gemma3)",
+    "time": "2026-04-17T15:44:39.400287"
+  },
+  {
+    "role": "user",
+    "content": "compose to principal@@mgit.ac.in",
+    "time": "2026-04-17T15:45:06.669147"
+  },
+  {
+    "role": "helios",
+    "content": "Gmail compose opened!\n  To:      principal@@mgit.ac.in\n  Subject: Leave of Absence Request\n  Body:    Dear Principal [Principal’s Last Name],\n\nI am writing to request a leave of abse...\nReview and click Send in your browser.",
+    "time": "2026-04-17T15:45:14.686960"
+  }
+]

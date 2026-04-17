@@ -1,0 +1,42 @@
+[
+  {
+    "role": "user",
+    "content": "order a pizza for me",
+    "time": "2026-04-16T20:14:44.376084"
+  },
+  {
+    "role": "helios",
+    "content": "Sure! Where should I order pizza from?\nReply with: Swiggy or Zomato",
+    "time": "2026-04-16T20:14:50.576635"
+  },
+  {
+    "role": "user",
+    "content": "swiggy",
+    "time": "2026-04-16T20:15:00.558405"
+  },
+  {
+    "role": "helios",
+    "content": "Got it — Swiggy.\nWhat's your delivery location? (area name or full address)",
+    "time": "2026-04-16T20:15:00.574278"
+  },
+  {
+    "role": "user",
+    "content": "hyderabad",
+    "time": "2026-04-16T20:15:10.079200"
+  },
+  {
+    "role": "helios",
+    "content": "Delivery to: hyderabad\nWhat's your budget? (e.g. 200, 500, or type 'any' for no limit)",
+    "time": "2026-04-16T20:15:10.111545"
+  },
+  {
+    "role": "user",
+    "content": "200",
+    "time": "2026-04-16T20:15:16.312622"
+  },
+  {
+    "role": "helios",
+    "content": "Opening Swiggy to order: pizza\n  Location: hyderabad\n  Budget:   200\n\nThe Swiggy search page is open in your browser.\nSelect your restaurant, add to cart, and place the order!",
+    "time": "2026-04-16T20:15:16.395657"
+  }
+]

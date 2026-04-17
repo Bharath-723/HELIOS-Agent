@@ -1,0 +1,22 @@
+[
+  {
+    "role": "user",
+    "content": "shutdown",
+    "time": "2026-04-14T21:31:51.148350"
+  },
+  {
+    "role": "helios",
+    "content": "⚠️ Are you sure you want to SHUT DOWN the computer?\nType 'yes' to confirm or 'no' to cancel.",
+    "time": "2026-04-14T21:32:00.457733"
+  },
+  {
+    "role": "user",
+    "content": "no",
+    "time": "2026-04-14T21:32:13.836953"
+  },
+  {
+    "role": "helios",
+    "content": "Cancelled. 'shutdown' was not executed.",
+    "time": "2026-04-14T21:32:13.836953"
+  }
+]

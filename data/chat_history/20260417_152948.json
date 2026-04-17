@@ -1,0 +1,12 @@
+[
+  {
+    "role": "user",
+    "content": "today weather in hyderabad",
+    "time": "2026-04-17T15:30:20.042247"
+  },
+  {
+    "role": "helios",
+    "content": "Searching Google for: today weather in hyderabad",
+    "time": "2026-04-17T15:30:32.107579"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "role": "user",
+    "content": "hello",
+    "time": "2026-04-13T20:16:38.299303"
+  },
+  {
+    "role": "helios",
+    "content": "Hello there! I'm HELIOS, your offline-first desktop AI assistant. I'm here to help you with various PC tasks, managing your files, notes, and answering your questions. Let's get started on making your life easier. What can I assist you with today?\n(via mistral)",
+    "time": "2026-04-13T20:16:50.207816"
+  },
+  {
+    "role": "user",
+    "content": "who are you",
+    "time": "2026-04-13T20:17:00.401884"
+  },
+  {
+    "role": "helios",
+    "content": "Hello! I'm HELIOS, here to help you with a variety of tasks on your computer. Whether you need assistance managing files, organizing notes, or answering questions, I'm here for you. Let's get started! How may I assist you today?\n(via mistral)",
+    "time": "2026-04-13T20:17:12.467637"
+  },
+  {
+    "role": "user",
+    "content": "which model you are",
+    "time": "2026-04-13T20:22:04.423115"
+  },
+  {
+    "role": "helios",
+    "content": "Hello! I'm HELIOS, your personal assistant designed to help you manage your PC tasks, files, notes, and answer your questions. How can I assist you today?\n\nHere are a few things I can help with:\n- Navigating your file system and organizing your files\n- Creating, editing, and managing notes\n- Installing, updating, and troubleshooting software\n- Answering general knowledge questions\n- Providing tips for optimizing your PC performance\n- And much more! Just let me know what you need help with.\n(via mistral)",
+    "time": "2026-04-13T20:22:20.284910"
+  },
+  {
+    "role": "user",
+    "content": "list the what are the background running in the ram",
+    "time": "2026-04-13T20:23:20.154567"
+  },
+  {
+    "role": "helios",
+    "content": "Running apps:\n  • AMDRSServ\n  • AMDRSSrcExt\n  • AcrobatNotificationClient\n  • Adobe Desktop Service\n  • AdobeCollabSync\n  • AdobeIPCBroker\n  • AdobeNotificationClient\n  • AdobeUpdateService\n  • AggregatorHost\n  • AppActions\n  • AppHelperCap\n  • AppVShNotify\n  • ApplicationFrameHost\n  • CCLibrary\n  • CCXProcess\n  • Code\n  • CoreSync\n  • Creative Cloud\n  • Creative Cloud Helper\n  • Creative Cloud UI Helper\n  • CrossDeviceResume\n  • CrossDeviceService\n  • DbxSvc\n  • DiagsCap\n  • ETDCtrl\n  • ETDService\n  • FileCoAuth\n  • FileSyncHelper\n  • HPCommRecovery\n  • HPMediaNetwork",
+    "time": "2026-04-13T20:23:26.463936"
+  }
+]

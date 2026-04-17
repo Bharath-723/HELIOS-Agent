@@ -1,0 +1,82 @@
+[
+  {
+    "role": "user",
+    "content": "increase brightness",
+    "time": "2026-04-16T11:45:39.496226"
+  },
+  {
+    "role": "helios",
+    "content": "Brightness set to 59%.",
+    "time": "2026-04-16T11:45:47.702575"
+  },
+  {
+    "role": "user",
+    "content": "decrease brightness",
+    "time": "2026-04-16T11:46:27.295555"
+  },
+  {
+    "role": "helios",
+    "content": "Brightness set to 49%.",
+    "time": "2026-04-16T11:46:41.683757"
+  },
+  {
+    "role": "user",
+    "content": "turn on bluetooth",
+    "time": "2026-04-16T11:47:06.611225"
+  },
+  {
+    "role": "helios",
+    "content": "Bluetooth turned ON successfully.",
+    "time": "2026-04-16T11:47:13.808751"
+  },
+  {
+    "role": "user",
+    "content": "turn off",
+    "time": "2026-04-16T11:48:06.107948"
+  },
+  {
+    "role": "helios",
+    "content": "Bluetooth turned OFF successfully.",
+    "time": "2026-04-16T11:48:11.781369"
+  },
+  {
+    "role": "user",
+    "content": "shutdown",
+    "time": "2026-04-16T11:48:20.081896"
+  },
+  {
+    "role": "helios",
+    "content": "⚠ Are you sure you want to SHUT DOWN the computer?\nReply 'yes' to confirm or 'no' to cancel.",
+    "time": "2026-04-16T11:48:23.891919"
+  },
+  {
+    "role": "user",
+    "content": "no",
+    "time": "2026-04-16T11:48:37.191765"
+  },
+  {
+    "role": "helios",
+    "content": "Cancelled — 'shutdown' was not executed.",
+    "time": "2026-04-16T11:48:37.199487"
+  },
+  {
+    "role": "user",
+    "content": "turn on airplane mode",
+    "time": "2026-04-16T11:48:55.165639"
+  },
+  {
+    "role": "helios",
+    "content": "Airplane Mode ON:\n  Wi-Fi (Wi-Fi) disabled ✓\n  Bluetooth disabled ✓",
+    "time": "2026-04-16T11:49:07.699612"
+  },
+  {
+    "role": "user",
+    "content": "wifi status",
+    "time": "2026-04-16T11:49:22.934220"
+  },
+  {
+    "role": "helios",
+    "content": "Wi-Fi connected to: TP-Link_LIB-5G",
+    "time": "2026-04-16T11:49:28.236708"
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "role": "user",
+    "content": "hi",
+    "time": "2026-04-14T12:06:45.772239"
+  },
+  {
+    "role": "helios",
+    "content": "Hello there! How can I assist you today? Whether it's managing your files, helping with PC tasks, taking notes, or answering your questions, I'm here to help. Let me know what you need! 😊\n(via mistral)",
+    "time": "2026-04-14T12:07:03.087920"
+  },
+  {
+    "role": "user",
+    "content": "pull gemma3",
+    "time": "2026-04-14T12:07:31.943765"
+  },
+  {
+    "role": "user",
+    "content": "exut",
+    "time": "2026-04-14T12:10:14.747298"
+  },
+  {
+    "role": "helios",
+    "content": "Failed to pull 'gemma3':\n",
+    "time": "2026-04-14T12:10:26.690845"
+  },
+  {
+    "role": "user",
+    "content": "ok",
+    "time": "2026-04-14T12:10:32.306093"
+  },
+  {
+    "role": "helios",
+    "content": "Hello! I'm HELIOS, your autonomous offline-first desktop AI assistant. How can I help you with your PC tasks today? If you need assistance with files, notes, or have any questions, feel free to ask. Let's make your desktop experience more enjoyable and efficient.\n\nTo get started, what would you like me to do for you?\n(via mistral)",
+    "time": "2026-04-14T12:10:33.836847"
+  },
+  {
+    "role": "helios",
+    "content": "Hello! I'm HELIOS, your personal AI assistant. How can I help you today? Whether it's managing files, taking notes, or answering questions, feel free to ask. Let's make the most of our time together!\n(via mistral)",
+    "time": "2026-04-14T12:10:43.884816"
+  },
+  {
+    "role": "user",
+    "content": "exit",
+    "time": "2026-04-14T12:10:51.213694"
+  },
+  {
+    "role": "helios",
+    "content": "Thank you for using me today! If you have any questions or need assistance in the future, feel free to ask again. Have a great day!\n(via mistral)",
+    "time": "2026-04-14T12:11:02.243647"
+  },
+  {
+    "role": "user",
+    "content": "open yt and search for 3blu4green",
+    "time": "2026-04-14T12:11:37.475232"
+  },
+  {
+    "role": "helios",
+    "content": "To open YouTube and search for \"3blu4green,\" follow these steps:\n\n1. Click the Start menu or press the Windows key on your keyboard.\n2. Type \"YouTube\" in the search bar, then click on the YouTube app from the list of results. Alternatively, if you have YouTube pinned to the Start menu, you can click it directly.\n3. Once YouTube is open, locate the search bar at the top.\n4. Type \"3blu4green\" in the search bar and press Enter. This will display results related to your query.\n5. Enjoy watching videos about 3blu4green! If needed, you can also use the filter options on the left sidebar to sort and refine your search results.\n(via mistral)",
+    "time": "2026-04-14T12:15:13.714580"
+  }
+]
