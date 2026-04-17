@@ -1,6 +1,6 @@
-# HELIOS - AI-Powered Desktop Assistant
+# HELIOS - An Autonoumous Desktop Agent
 
-HELIOS is an intelligent desktop automation and assistance system that uses natural language processing and AI to help with various tasks including file management, email composition, web search, note-taking, and system controls.
+HELIOS(Hybrid Extinsible Language Intelligence Operationg System) is an intelligent desktop automation and assistance system that uses natural language processing and AI to help with various tasks including file management, email composition, web search, note-taking, and system controls.
 
 ## Features
 
@@ -15,7 +15,7 @@ HELIOS is an intelligent desktop automation and assistance system that uses natu
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - See `requirements.txt` for dependencies
 
 ## Installation
