@@ -6,6 +6,14 @@ WiFi, Bluetooth, Airplane mode, Brightness, Dark mode, Power plans
 import subprocess
 import webbrowser
 import psutil
+import ctypes
+
+
+def _ask_admin_permission(message: str) -> bool:
+    """Show a native Windows Yes/No warning message box requesting elevation."""
+    # 0x00000004: MB_YESNO, 0x00000030: MB_ICONWARNING, 0x00040000: MB_TOPMOST
+    res = ctypes.windll.user32.MessageBoxW(0, message, "HELIOS - Elevation Required", 0x00000004 | 0x00000030 | 0x00040000)
+    return res == 6  # 6 is IDYES
 
 
 def _ps(cmd: str, timeout: int = 15) -> tuple:
@@ -38,15 +46,21 @@ class SystemControls:
         if status and status != "disabled":
             return f"Wi-Fi ({adapter}) turned ON. Status: {o.strip()}"
         # Netsh fallback
-        c2, o2, e2 = _ps(
-            f"netsh interface set interface name='{adapter}' admin=enabled 2>&1; "
-            f"Write-Output 'DONE'")
-        if "DONE" in o2 and not e2:
+        c2, o2, e2 = _ps(f"netsh interface set interface name='{adapter}' admin=enabled")
+        if c2 == 0:
             return f"Wi-Fi ({adapter}) turned ON."
-        _ps(f"Start-Process powershell -ArgumentList "
-            f"'Enable-NetAdapter -Name \"{adapter}\" -Confirm:$false' -Verb RunAs -Wait")
-        return (f"Wi-Fi ON requested for adapter '{adapter}'.\n"
-                f"If still off, run HELIOS as Administrator.")
+        
+        # Request elevation permission via popup message box
+        if _ask_admin_permission(f"HELIOS needs administrator permission to turn ON Wi-Fi ({adapter}).\n\nDo you want to allow this?"):
+            _ps(f"Start-Process powershell -ArgumentList "
+                f"'Enable-NetAdapter -Name \"{adapter}\" -Confirm:$false' -Verb RunAs -Wait")
+            # Verify status
+            c3, o3, e3 = _ps(f"(Get-NetAdapter -Name '{adapter}').Status")
+            status3 = o3.strip().lower()
+            if status3 and status3 != "disabled":
+                return f"Wi-Fi ({adapter}) turned ON. Status: {o3.strip()}"
+            return f"Failed to turn ON Wi-Fi ({adapter}) even after elevation."
+        return "Wi-Fi toggle cancelled: Administrative permission denied by user."
 
     def wifi_off(self) -> str:
         adapter = _get_wifi_adapter()
@@ -57,15 +71,21 @@ class SystemControls:
         if o.strip().lower() == "disabled":
             return f"Wi-Fi ({adapter}) turned OFF."
         # Netsh fallback
-        c2, o2, e2 = _ps(
-            f"netsh interface set interface name='{adapter}' admin=disabled 2>&1; "
-            f"Write-Output 'DONE'")
-        if "DONE" in o2 and not e2:
+        c2, o2, e2 = _ps(f"netsh interface set interface name='{adapter}' admin=disabled")
+        if c2 == 0:
             return f"Wi-Fi ({adapter}) turned OFF."
-        _ps(f"Start-Process powershell -ArgumentList "
-            f"'Disable-NetAdapter -Name \"{adapter}\" -Confirm:$false' -Verb RunAs -Wait")
-        return (f"Wi-Fi OFF requested for adapter '{adapter}'.\n"
-                f"If still on, run HELIOS as Administrator.")
+            
+        # Request elevation permission via popup message box
+        if _ask_admin_permission(f"HELIOS needs administrator permission to turn OFF Wi-Fi ({adapter}).\n\nDo you want to allow this?"):
+            _ps(f"Start-Process powershell -ArgumentList "
+                f"'Disable-NetAdapter -Name \"{adapter}\" -Confirm:$false' -Verb RunAs -Wait")
+            # Verify status
+            c3, o3, e3 = _ps(f"(Get-NetAdapter -Name '{adapter}').Status")
+            status3 = o3.strip().lower()
+            if status3 == "disabled":
+                return f"Wi-Fi ({adapter}) turned OFF."
+            return f"Failed to turn OFF Wi-Fi ({adapter}) even after elevation."
+        return "Wi-Fi toggle cancelled: Administrative permission denied by user."
 
     def wifi_status(self) -> str:
         c, o, e = _ps("netsh wlan show interfaces")
@@ -160,13 +180,22 @@ if ($bluetooth) {
         if o.strip().lower() == "disabled":
             results.append(f"Wi-Fi ({wifi_adapter}) disabled ✓")
         else:
-            c2, o2, _ = _ps(
-                f"netsh interface set interface name='{wifi_adapter}' admin=disabled 2>&1; "
-                f"Write-Output 'DONE'")
-            if "DONE" in o2 and not _:
+            c2, o2, e2 = _ps(f"netsh interface set interface name='{wifi_adapter}' admin=disabled")
+            if c2 == 0:
                 results.append(f"Wi-Fi ({wifi_adapter}) disabled ✓")
             else:
-                errors.append(f"Wi-Fi needs admin rights")
+                # Request elevation permission via popup message box
+                if _ask_admin_permission(f"HELIOS needs administrator permission to disable Wi-Fi ({wifi_adapter}) for Airplane Mode.\n\nDo you want to allow this?"):
+                    _ps(f"Start-Process powershell -ArgumentList "
+                        f"'Disable-NetAdapter -Name \"{wifi_adapter}\" -Confirm:$false' -Verb RunAs -Wait")
+                    # Check status again
+                    c3, o3, e3 = _ps(f"(Get-NetAdapter -Name '{wifi_adapter}').Status")
+                    if o3.strip().lower() == "disabled":
+                        results.append(f"Wi-Fi ({wifi_adapter}) disabled ✓")
+                    else:
+                        errors.append("Wi-Fi disable failed even with admin rights")
+                else:
+                    errors.append("Wi-Fi disable failed (administrative permission denied)")
 
         bt_script = r"""
 Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
@@ -210,13 +239,23 @@ else { Write-Output "BT_SKIP" }
         if status and status != "disabled":
             results.append(f"Wi-Fi ({wifi_adapter}) enabled ✓")
         else:
-            c2, o2, _ = _ps(
-                f"netsh interface set interface name='{wifi_adapter}' admin=enabled 2>&1; "
-                f"Write-Output 'DONE'")
-            if "DONE" in o2:
+            c2, o2, e2 = _ps(f"netsh interface set interface name='{wifi_adapter}' admin=enabled")
+            if c2 == 0:
                 results.append(f"Wi-Fi ({wifi_adapter}) enabled ✓")
             else:
-                errors.append("Wi-Fi needs admin rights")
+                # Request elevation permission via popup message box
+                if _ask_admin_permission(f"HELIOS needs administrator permission to enable Wi-Fi ({wifi_adapter}) to disable Airplane Mode.\n\nDo you want to allow this?"):
+                    _ps(f"Start-Process powershell -ArgumentList "
+                        f"'Enable-NetAdapter -Name \"{wifi_adapter}\" -Confirm:$false' -Verb RunAs -Wait")
+                    # Check status again
+                    c3, o3, e3 = _ps(f"(Get-NetAdapter -Name '{wifi_adapter}').Status")
+                    status3 = o3.strip().lower()
+                    if status3 and status3 != "disabled":
+                        results.append(f"Wi-Fi ({wifi_adapter}) enabled ✓")
+                    else:
+                        errors.append("Wi-Fi enable failed even with admin rights")
+                else:
+                    errors.append("Wi-Fi enable failed (administrative permission denied)")
 
         bt_script = r"""
 Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
@@ -317,6 +356,7 @@ Write-Output 'OK'
             "updates": "ms-settings:windowsupdate",
             "airplane": "ms-settings:network-airplanemode",
             "storage": "ms-settings:storagesense",
+            "nightlight": "ms-settings:nightlight",
         }
         webbrowser.open(pages.get(page.lower(), "ms-settings:"))
         return f"Opened {page or 'Windows'} Settings."
@@ -342,3 +382,116 @@ Write-Output 'OK'
         for name, cpu, mem in procs[:n]:
             lines.append(f"  {name:<28} CPU:{cpu:5.1f}%  RAM:{mem}MB")
         return "\n".join(lines)
+
+    # ── Night Light ───────────────────────────────────────────────────────
+    def night_light_on(self) -> str:
+        c, o, e = _ps("npx nightlight-cli on")
+        if c == 0:
+            return "Night Light turned ON."
+        return f"Failed to turn ON Night Light: {e or o}"
+
+    def night_light_off(self) -> str:
+        c, o, e = _ps("npx nightlight-cli off")
+        if c == 0:
+            return "Night Light turned OFF."
+        return f"Failed to turn OFF Night Light: {e or o}"
+
+    def night_light_status(self) -> str:
+        c, o, e = _ps("npx nightlight-cli status")
+        if c == 0:
+            return f"Night Light status: {o.strip().upper()}"
+        return f"Could not get Night Light status: {e or o}"
+
+    # ── Mobile Hotspot ────────────────────────────────────────────────────
+    def hotspot_on(self) -> str:
+        script = r"""
+Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
+$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | ? { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+Function Await($WinRtTask, $ResultType) {
+    $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
+    $netTask = $asTask.Invoke($null, @($WinRtTask))
+    $netTask.Wait(-1) | Out-Null
+    $netTask.Result
+}
+[Windows.Networking.Connectivity.NetworkInformation,Windows.Networking.Connectivity,ContentType=WindowsRuntime] | Out-Null
+[Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager,Windows.Networking.NetworkOperators,ContentType=WindowsRuntime] | Out-Null
+$connectionProfile = [Windows.Networking.Connectivity.NetworkInformation]::GetInternetConnectionProfile()
+if ($connectionProfile) {
+    $tetheringManager = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager]::CreateFromConnectionProfile($connectionProfile)
+    if ($tetheringManager) {
+        $res = Await ($tetheringManager.StartTetheringAsync()) ([Windows.Networking.NetworkOperators.NetworkOperatorTetheringOperationResult])
+        Write-Output "STATUS:$($res.Status)"
+    } else {
+        Write-Output "NO_TETHERING_MANAGER"
+    }
+} else {
+    Write-Output "NO_CONNECTION_PROFILE"
+}
+"""
+        c, o, e = _ps(script)
+        if "STATUS:Success" in o:
+            return "Mobile Hotspot turned ON successfully."
+        if "NO_CONNECTION_PROFILE" in o:
+            return "Failed to turn ON Mobile Hotspot: No active internet connection profile found."
+        return f"Failed to turn ON Mobile Hotspot. Output: {o.strip() or e}"
+
+    def hotspot_off(self) -> str:
+        script = r"""
+Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
+$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | ? { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+Function Await($WinRtTask, $ResultType) {
+    $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
+    $netTask = $asTask.Invoke($null, @($WinRtTask))
+    $netTask.Wait(-1) | Out-Null
+    $netTask.Result
+}
+[Windows.Networking.Connectivity.NetworkInformation,Windows.Networking.Connectivity,ContentType=WindowsRuntime] | Out-Null
+[Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager,Windows.Networking.NetworkOperators,ContentType=WindowsRuntime] | Out-Null
+$connectionProfile = [Windows.Networking.Connectivity.NetworkInformation]::GetInternetConnectionProfile()
+if ($connectionProfile) {
+    $tetheringManager = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager]::CreateFromConnectionProfile($connectionProfile)
+    if ($tetheringManager) {
+        $res = Await ($tetheringManager.StopTetheringAsync()) ([Windows.Networking.NetworkOperators.NetworkOperatorTetheringOperationResult])
+        Write-Output "STATUS:$($res.Status)"
+    } else {
+        Write-Output "NO_TETHERING_MANAGER"
+    }
+} else {
+    Write-Output "NO_CONNECTION_PROFILE"
+}
+"""
+        c, o, e = _ps(script)
+        if "STATUS:Success" in o:
+            return "Mobile Hotspot turned OFF successfully."
+        return f"Failed to turn OFF Mobile Hotspot. Output: {o.strip() or e}"
+
+    def hotspot_status(self) -> str:
+        script = r"""
+Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
+$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | ? { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+Function Await($WinRtTask, $ResultType) {
+    $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
+    $netTask = $asTask.Invoke($null, @($WinRtTask))
+    $netTask.Wait(-1) | Out-Null
+    $netTask.Result
+}
+[Windows.Networking.Connectivity.NetworkInformation,Windows.Networking.Connectivity,ContentType=WindowsRuntime] | Out-Null
+[Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager,Windows.Networking.NetworkOperators,ContentType=WindowsRuntime] | Out-Null
+$connectionProfile = [Windows.Networking.Connectivity.NetworkInformation]::GetInternetConnectionProfile()
+if ($connectionProfile) {
+    $tetheringManager = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager]::CreateFromConnectionProfile($connectionProfile)
+    if ($tetheringManager) {
+        $state = $tetheringManager.TetheringOperationalState
+        Write-Output "STATE:$state"
+    } else {
+        Write-Output "NO_TETHERING_MANAGER"
+    }
+} else {
+    Write-Output "NO_CONNECTION_PROFILE"
+}
+"""
+        c, o, e = _ps(script)
+        if "STATE:" in o:
+            state = o.split("STATE:")[1].strip()
+            return f"Mobile Hotspot status: {state.upper()}"
+        return f"Could not query Mobile Hotspot status: {o.strip() or e}"

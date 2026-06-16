@@ -37,6 +37,22 @@ RULE 7 — "book movie ticket" / "book ticket for X" / "movie near me" → book_
 
 RULE 8 — General knowledge (recipes, how-to, history, science) → general_chat.
 
+RULE 9 — If user wants to "play", "watch", "stream", "listen", or "search" something on "youtube" or "online" (e.g. "play lofi on youtube") → search_youtube.
+
+RULE 10 — If user wants to "pause", "pause playing", "pause video/music" → pause_media.
+
+RULE 11 — If user wants to "stop", "stop playing", "stop youtube", "stop playing both videos", or "close youtube" → stop_media.
+
+RULE 12 — If user asks to "open X and search for Y" or "search for Y in/on X" where X is a website (like swiggy, zomato, amazon, github, etc.) → open_website with site=X and query=Y.
+
+RULE 13 — If the user asks for browser automation, web page clicking, filtering, or adding items to a shopping/food cart (actions that require page interaction) → general_chat.
+
+RULE 14 — If user mentions "local", "pc", "local pc", "computer", "my files", "my drive", "my computer", "drive", "disk" (e.g. "play strive video from local computer" or "search for strive in my local pc") → play_media (for play) or find_file (for search), NEVER search_youtube or web_search.
+
+RULE 15 — If user asks to turn off/on night light, route to night_light_on or night_light_off. If they ask to turn off/on energy saver or battery saver, route to power_balanced or power_saver. If they ask to toggle mobile hotspot, route to hotspot_on, hotspot_off, or hotspot_status.
+
+RULE 16 — If user asks to convert, make, export, or save a file (like docx, text, txt, etc.) to PDF → convert_to_pdf. If path is known, set path; if not, set query to the filename/keywords.
+
 ════════════════════════════════════════════════
 ACTIONS:
 ════════════════════════════════════════════════
@@ -44,7 +60,7 @@ ACTIONS:
 play_media: {"query": "name"}
 open_app: {"app": "app name"}
 open_explorer_search: {"query": "name"}
-open_website: {"site": "name"}
+open_website: {"site": "name", "query": "search query (optional)"}
 open_url: {"url": "https://..."}
 search_google: {"query": "terms"}
 search_youtube: {"query": "terms"}
@@ -57,6 +73,7 @@ open_file: {"path": "filepath"}
 search_in_file: {"filename": "file.txt", "keyword": "word to find"}
 move_file: {"name": "filename", "from": "source", "to": "destination"}
 delete_file: {"name": "filename", "path": ""}
+convert_to_pdf: {"path": "filepath", "query": "filename or keywords"}
 
 compose_gmail: {"to": "email", "subject": "subject", "body": "body"}
 open_gmail: {}
@@ -71,12 +88,20 @@ bluetooth_on: {}
 bluetooth_off: {}
 airplane_mode_on: {}
 airplane_mode_off: {}
+night_light_on: {}
+night_light_off: {}
+night_light_status: {}
+hotspot_on: {}
+hotspot_off: {}
+hotspot_status: {}
 brightness_set: {"level": 70}
 brightness_up: {"amount": 10}
 brightness_down: {"amount": 10}
 volume_up: {"steps": 5}
 volume_down: {"steps": 5}
 mute: {}
+pause_media: {}
+stop_media: {}
 screenshot: {}
 lock_screen: {}
 shutdown: {"delay": 0}
@@ -92,7 +117,7 @@ power_performance: {}
 power_balanced: {}
 power_saver: {}
 flush_dns: {}
-open_settings: {"page": "wifi|bluetooth|display|sound|battery|updates|airplane"}
+open_settings: {"page": "wifi|bluetooth|display|sound|battery|updates|airplane|nightlight"}
 open_task_manager: {}
 top_processes: {}
 ip_address: {}
@@ -138,6 +163,33 @@ EXAMPLES:
 "search for python tutorials"          -> {"action": "web_search", "params": {"query": "python tutorials"}}
 "yes compose to raju@gmail.com"        -> {"action": "compose_gmail", "params": {"to": "raju@gmail.com", "subject": "", "body": ""}}
 "open explorer and search for silica"  -> {"action": "open_explorer_search", "params": {"query": "silica"}}
+"play lofi on youtube"                 -> {"action": "search_youtube", "params": {"query": "lofi"}}
+"play random video from youtube"       -> {"action": "search_youtube", "params": {"query": "random youtube videos"}}
+"stop playing both videos"             -> {"action": "stop_media", "params": {}}
+"stop playing"                         -> {"action": "stop_media", "params": {}}
+"pause the music"                      -> {"action": "pause_media", "params": {}}
+"pause the video"                      -> {"action": "pause_media", "params": {}}
+"open swiggy and search for paneer biryani" -> {"action": "open_website", "params": {"site": "swiggy", "query": "paneer biryani"}}
+"open swigggy and searchf ro pizza"    -> {"action": "open_website", "params": {"site": "swiggy", "query": "pizza"}}
+"search for shoes on amazon"           -> {"action": "open_website", "params": {"site": "amazon", "query": "shoes"}}
+"add an item with rating morethan 4 to cart" -> {"action": "general_chat", "params": {"message": "add an item with rating morethan 4 to cart"}}
+"click the first search result"        -> {"action": "general_chat", "params": {"message": "click the first search result"}}
+"search for strive video in my local pc" -> {"action": "find_file", "params": {"query": "strive"}}
+"play strive video from local pc"      -> {"action": "play_media", "params": {"query": "strive"}}
+"turn off energy saver mode"             -> {"action": "power_balanced", "params": {}}
+"turn on energy saver"                   -> {"action": "power_saver", "params": {}}
+"turn on battery saver"                  -> {"action": "power_saver", "params": {}}
+"turn off battery saver"                 -> {"action": "power_balanced", "params": {}}
+"turn on every saver"                    -> {"action": "power_saver", "params": {}}
+"and energy saver"                       -> {"action": "power_saver", "params": {}}
+"turn off night light"                   -> {"action": "night_light_off", "params": {}}
+"turn on night light mode"               -> {"action": "night_light_on", "params": {}}
+"turn on mobile hotspot"                 -> {"action": "hotspot_on", "params": {}}
+"disable hotspot"                        -> {"action": "hotspot_off", "params": {}}
+"is my hotspot on"                       -> {"action": "hotspot_status", "params": {}}
+"make a pdf of my resume"                -> {"action": "convert_to_pdf", "params": {"query": "resume"}}
+"convert IKS_Consolidated_Study_Guide.docx to pdf" -> {"action": "convert_to_pdf", "params": {"query": "IKS_Consolidated_Study_Guide.docx"}}
+"text file into a pdf fil"               -> {"action": "convert_to_pdf", "params": {"query": "IKS_Consolidated_Study_Guide.docx"}}
 """
 
 
@@ -146,6 +198,17 @@ class NLRouter:
         self.llm = llm
 
     def parse(self, user_input: str, context: str = "") -> dict:
+        # Programmatic shortcut for attached files conversion to PDF
+        attachment_match = re.search(r'\[(DOCX|TXT|DOC|FILE):\s*(.*?)\]', user_input, re.IGNORECASE)
+        if not attachment_match and context:
+            attachment_match = re.search(r'\[(DOCX|TXT|DOC|FILE):\s*(.*?)\]', context, re.IGNORECASE)
+            
+        if attachment_match:
+            lower_input = user_input.lower()
+            if any(w in lower_input for w in ("convert", "pdf", "make a pdf", "export to pdf", "save as pdf")):
+                filename = attachment_match.group(2).strip()
+                return {"action": "convert_to_pdf", "params": {"query": filename}}
+
         if context:
             prompt = (
                 f"Recent conversation (use to resolve follow-ups):\n{context}\n\n"

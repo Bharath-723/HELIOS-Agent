@@ -17,3 +17,6 @@ python-dotenv>=1.0.1
 schedule>=1.2.0
 google-genai>=1.0.0
 python-dotenv>=1.0.1
+pyaudio>=0.2.11
+SpeechRecognition>=3.8.1
+pipwin>=0.5.2
