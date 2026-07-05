@@ -1,0 +1,42 @@
+[
+  {
+    "role": "user",
+    "content": "play lofi on youtube",
+    "time": "2026-06-16T23:41:58.833284"
+  },
+  {
+    "role": "helios",
+    "content": "Playing directly on YouTube:\n  • lofi\n  • URL: https://www.youtube.com/watch?v=X4VbdwhkE10",
+    "time": "2026-06-16T23:42:05.434601"
+  },
+  {
+    "role": "user",
+    "content": "now search for avengers and play a random video from search",
+    "time": "2026-06-16T23:42:44.821861"
+  },
+  {
+    "role": "helios",
+    "content": "Playing directly on YouTube:\n  • avengers\n  • URL: https://www.youtube.com/watch?v=2jEzC6l-OdI",
+    "time": "2026-06-16T23:42:52.586704"
+  },
+  {
+    "role": "user",
+    "content": "stop playing both videos",
+    "time": "2026-06-16T23:43:08.987979"
+  },
+  {
+    "role": "helios",
+    "content": "⚠ Are you sure you want to force-close 'youtube'?\nReply 'yes' to confirm or 'no' to cancel.",
+    "time": "2026-06-16T23:43:14.828431"
+  },
+  {
+    "role": "user",
+    "content": "yes",
+    "time": "2026-06-16T23:43:20.297835"
+  },
+  {
+    "role": "helios",
+    "content": "No running process found for 'youtube'.",
+    "time": "2026-06-16T23:43:20.503508"
+  }
+]

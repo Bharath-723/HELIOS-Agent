@@ -5,7 +5,7 @@ Features
   🎤 Voice input  — click mic → speak → transcribed and sent automatically
   📎 File upload  — attach any doc / image / code file for HELIOS to analyse
   ⋮  Settings     — model, cloud, mode switcher + scrollable session history
-
+  
 Run
 ---
     python helios_popup.py

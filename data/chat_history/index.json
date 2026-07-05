@@ -1,5 +1,334 @@
 [
   {
+    "id": "20260703_144535",
+    "started": "2026-07-03T14:45:35.837909",
+    "title": "hi",
+    "preview": "hi",
+    "message_count": 3
+  },
+  {
+    "id": "20260617_132659",
+    "started": "2026-06-17T13:26:59.892422",
+    "title": "open postman app",
+    "preview": "open postman app",
+    "message_count": 2
+  },
+  {
+    "id": "20260617_104124",
+    "started": "2026-06-17T10:41:24.639364",
+    "title": "Hey",
+    "preview": "Hey",
+    "message_count": 17
+  },
+  {
+    "id": "20260617_103453",
+    "started": "2026-06-17T10:34:53.935765",
+    "title": "Hey, open youtube",
+    "preview": "Hey, open youtube",
+    "message_count": 1
+  },
+  {
+    "id": "20260617_010051",
+    "started": "2026-06-17T01:00:51.875075",
+    "title": "[DOCX: 4th unit krr (1).docx]\n\nIt looks ...",
+    "preview": "[DOCX: 4th unit krr (1).docx]\n\nIt looks like you're referring to core topics in ",
+    "message_count": 4
+  },
+  {
+    "id": "20260617_005854",
+    "started": "2026-06-17T00:58:54.285176",
+    "title": "[DOCX: IKS_Consolidated_Study_Guide.docx...",
+    "preview": "[DOCX: IKS_Consolidated_Study_Guide.docx]\n\nIndian Knowledge System (IKS)\nConsoli",
+    "message_count": 2
+  },
+  {
+    "id": "20260617_005709",
+    "started": "2026-06-17T00:57:09.914893",
+    "title": "[DOCX: IKS_Consolidated_Study_Guide.docx...",
+    "preview": "[DOCX: IKS_Consolidated_Study_Guide.docx]\n\nIndian Knowledge System (IKS)\nConsoli",
+    "message_count": 2
+  },
+  {
+    "id": "20260617_005458",
+    "started": "2026-06-17T00:54:58.932724",
+    "title": "[DOCX: IKS_Consolidated_Study_Guide.docx...",
+    "preview": "[DOCX: IKS_Consolidated_Study_Guide.docx]\n\nIndian Knowledge System (IKS)\nConsoli",
+    "message_count": 2
+  },
+  {
+    "id": "20260617_005041",
+    "started": "2026-06-17T00:50:41.579499",
+    "title": "[DOCX: IKS_Consolidated_Study_Guide.docx...",
+    "preview": "[DOCX: IKS_Consolidated_Study_Guide.docx]\n\nIndian Knowledge System (IKS)\nConsoli",
+    "message_count": 2
+  },
+  {
+    "id": "20260617_004254",
+    "started": "2026-06-17T00:42:54.120392",
+    "title": "turn on night light",
+    "preview": "turn on night light",
+    "message_count": 24
+  },
+  {
+    "id": "20260617_003224",
+    "started": "2026-06-17T00:32:24.415462",
+    "title": "turn off enery sver mode",
+    "preview": "turn off enery sver mode",
+    "message_count": 14
+  },
+  {
+    "id": "20260617_002109",
+    "started": "2026-06-17T00:21:09.791786",
+    "title": "search for strive video in file explorer",
+    "preview": "search for strive video in file explorer",
+    "message_count": 20
+  },
+  {
+    "id": "20260617_001840",
+    "started": "2026-06-17T00:18:40.093517",
+    "title": "search for strive video in my local pc",
+    "preview": "search for strive video in my local pc",
+    "message_count": 4
+  },
+  {
+    "id": "20260617_001630",
+    "started": "2026-06-17T00:16:30.765692",
+    "title": "search for strive video in my local pc",
+    "preview": "search for strive video in my local pc",
+    "message_count": 4
+  },
+  {
+    "id": "20260617_000108",
+    "started": "2026-06-17T00:01:08.229899",
+    "title": "search for a video named \"strive\" in my ...",
+    "preview": "search for a video named \"strive\" in my local pc",
+    "message_count": 14
+  },
+  {
+    "id": "20260616_235255",
+    "started": "2026-06-16T23:52:55.985486",
+    "title": "order a pizza for me",
+    "preview": "order a pizza for me",
+    "message_count": 26
+  },
+  {
+    "id": "20260616_235035",
+    "started": "2026-06-16T23:50:35.585109",
+    "title": "open swiggy and search for pizza",
+    "preview": "open swiggy and search for pizza",
+    "message_count": 4
+  },
+  {
+    "id": "20260616_234752",
+    "started": "2026-06-16T23:47:52.271737",
+    "title": "play a avenger video in youtube",
+    "preview": "play a avenger video in youtube",
+    "message_count": 10
+  },
+  {
+    "id": "20260616_234534",
+    "started": "2026-06-16T23:45:34.997808",
+    "title": "play a lofi video in youtube",
+    "preview": "play a lofi video in youtube",
+    "message_count": 5
+  },
+  {
+    "id": "20260616_234143",
+    "started": "2026-06-16T23:41:43.835349",
+    "title": "play lofi on youtube",
+    "preview": "play lofi on youtube",
+    "message_count": 8
+  },
+  {
+    "id": "20260616_233951",
+    "started": "2026-06-16T23:39:51.531402",
+    "title": "play lofi on youtube",
+    "preview": "play lofi on youtube",
+    "message_count": 2
+  },
+  {
+    "id": "20260616_233804",
+    "started": "2026-06-16T23:38:04.039116",
+    "title": "play lofi on youtube",
+    "preview": "play lofi on youtube",
+    "message_count": 1
+  },
+  {
+    "id": "20260616_232811",
+    "started": "2026-06-16T23:28:11.795358",
+    "title": "open youtube and search for lofi , also ...",
+    "preview": "open youtube and search for lofi , also play a random video from the sreachh",
+    "message_count": 8
+  },
+  {
+    "id": "20260616_232501",
+    "started": "2026-06-16T23:25:01.757983",
+    "title": "Hey open youtube",
+    "preview": "Hey open youtube",
+    "message_count": 6
+  },
+  {
+    "id": "20260616_232337",
+    "started": "2026-06-16T23:23:37.378323",
+    "title": "Hey open youtube",
+    "preview": "Hey open youtube",
+    "message_count": 2
+  },
+  {
+    "id": "20260616_232230",
+    "started": "2026-06-16T23:22:30.631028",
+    "title": "Session Jun 16, 23:22",
+    "preview": "",
+    "message_count": 0
+  },
+  {
+    "id": "20260616_232005",
+    "started": "2026-06-16T23:20:05.869763",
+    "title": "open youtube and search for lofi",
+    "preview": "open youtube and search for lofi",
+    "message_count": 2
+  },
+  {
+    "id": "20260616_231943",
+    "started": "2026-06-16T23:19:43.638326",
+    "title": "open youtube and search for lofi",
+    "preview": "open youtube and search for lofi",
+    "message_count": 2
+  },
+  {
+    "id": "20260616_231843",
+    "started": "2026-06-16T23:18:43.520502",
+    "title": "hello, what you can do",
+    "preview": "hello, what you can do",
+    "message_count": 2
+  },
+  {
+    "id": "20260616_231619",
+    "started": "2026-06-16T23:16:19.915473",
+    "title": "Hey",
+    "preview": "Hey",
+    "message_count": 4
+  },
+  {
+    "id": "20260616_230011",
+    "started": "2026-06-16T23:00:11.153982",
+    "title": "hello",
+    "preview": "hello",
+    "message_count": 2
+  },
+  {
+    "id": "20260616_222402",
+    "started": "2026-06-16T22:24:02.433211",
+    "title": "Hey",
+    "preview": "Hey",
+    "message_count": 2
+  },
+  {
+    "id": "20260616_222250",
+    "started": "2026-06-16T22:22:50.610120",
+    "title": "Hey",
+    "preview": "Hey",
+    "message_count": 1
+  },
+  {
+    "id": "20260520_105105",
+    "started": "2026-05-20T10:51:05.922501",
+    "title": "hi",
+    "preview": "hi",
+    "message_count": 10
+  },
+  {
+    "id": "20260427_124759",
+    "started": "2026-04-27T12:47:59.570035",
+    "title": "hello",
+    "preview": "hello",
+    "message_count": 5
+  },
+  {
+    "id": "20260426_140511",
+    "started": "2026-04-26T14:05:11.258343",
+    "title": "Session Apr 26, 14:05",
+    "preview": "",
+    "message_count": 0
+  },
+  {
+    "id": "20260425_232801",
+    "started": "2026-04-25T23:28:01.752481",
+    "title": "Session Apr 25, 23:28",
+    "preview": "",
+    "message_count": 0
+  },
+  {
+    "id": "20260425_095453",
+    "started": "2026-04-25T09:54:53.295124",
+    "title": "Session Apr 25, 09:54",
+    "preview": "",
+    "message_count": 0
+  },
+  {
+    "id": "20260425_092235",
+    "started": "2026-04-25T09:22:35.564615",
+    "title": "can make me a reminder after 2 minutes a...",
+    "preview": "can make me a reminder after 2 minutes about the outskill event",
+    "message_count": 21
+  },
+  {
+    "id": "20260424_103902",
+    "started": "2026-04-24T10:39:02.087042",
+    "title": "open file explorer",
+    "preview": "open file explorer",
+    "message_count": 8
+  },
+  {
+    "id": "20260424_102418",
+    "started": "2026-04-24T10:24:18.720225",
+    "title": "open file explore",
+    "preview": "open file explore",
+    "message_count": 1
+  },
+  {
+    "id": "20260423_215639",
+    "started": "2026-04-23T21:56:39.474678",
+    "title": "hey",
+    "preview": "hey",
+    "message_count": 22
+  },
+  {
+    "id": "20260423_082930",
+    "started": "2026-04-23T08:29:30.135755",
+    "title": "open youtube and search for lofi",
+    "preview": "open youtube and search for lofi",
+    "message_count": 4
+  },
+  {
+    "id": "20260422_202948",
+    "started": "2026-04-22T20:29:48.565163",
+    "title": "hey,i'm learning the aptitude & reasonin...",
+    "preview": "hey,i'm learning the aptitude & reasoning can you help me in guiding",
+    "message_count": 6
+  },
+  {
+    "id": "20260422_151733",
+    "started": "2026-04-22T15:17:33.731221",
+    "title": "hi",
+    "preview": "hi",
+    "message_count": 14
+  },
+  {
+    "id": "20260421_094438",
+    "started": "2026-04-21T09:44:38.780411",
+    "title": "i want to order a pizza",
+    "preview": "i want to order a pizza",
+    "message_count": 12
+  },
+  {
+    "id": "20260420_155309",
+    "started": "2026-04-20T15:53:09.123242",
+    "title": "Session Apr 20, 15:53",
+    "preview": "",
+    "message_count": 0
+  },
+  {
     "id": "20260417_153847",
     "started": "2026-04-17T15:38:47.223105",
     "title": "turn on blueetooth",

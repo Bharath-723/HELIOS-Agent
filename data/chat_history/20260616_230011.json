@@ -1,0 +1,12 @@
+[
+  {
+    "role": "user",
+    "content": "hello",
+    "time": "2026-06-16T23:00:11.156652"
+  },
+  {
+    "role": "helios",
+    "content": "Hello there! It’s great to connect with you. How can I assist you today?\n(via gemma3)",
+    "time": "2026-06-16T23:00:23.937206"
+  }
+]

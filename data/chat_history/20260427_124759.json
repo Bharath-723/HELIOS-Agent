@@ -1,0 +1,27 @@
+[
+  {
+    "role": "user",
+    "content": "hello",
+    "time": "2026-04-27T12:48:15.631364"
+  },
+  {
+    "role": "helios",
+    "content": "Hello there! It’s great to connect with you. How can I assist you today?\n(via gemma3)",
+    "time": "2026-04-27T12:48:29.922864"
+  },
+  {
+    "role": "user",
+    "content": "will you remind me in next 2 minutes about the lunch",
+    "time": "2026-04-27T12:48:40.384676"
+  },
+  {
+    "role": "helios",
+    "content": "Reminder set!\n  Task:   about the lunch\n  At:     2026-04-27 12:50:45\n  In:     1 minutes\n  ID:     4c8b327e",
+    "time": "2026-04-27T12:48:45.979350"
+  },
+  {
+    "role": "helios",
+    "content": "⏰ Reminder: about the lunch",
+    "time": "2026-04-27T12:50:46.014255"
+  }
+]
