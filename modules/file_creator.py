@@ -13,16 +13,65 @@ LOCATIONS = {
     "home":      Path.home(),
 }
 
+def validate_and_sanitize_filename(name: str) -> tuple[str, str | None]:
+    """
+    Validates and sanitizes a filename against Windows invalid characters and path traversal.
+    Returns (safe_name, error_message).
+    """
+    name_str = name.strip()
+    if not name_str:
+        return "", "Invalid filename: Filename cannot be empty."
+
+    # 1. Reject path traversal sequences explicitly
+    if "../" in name_str or "..\\" in name_str or "..//" in name_str:
+        return "", "Invalid filename: Path traversal sequences ('../' or '..\\') are prohibited."
+
+    # 2. Reject absolute paths explicitly
+    if os.path.isabs(name_str) or (len(name_str) >= 2 and name_str[1] == ':'):
+        return "", "Invalid filename: Absolute paths are prohibited."
+
+    base_name = os.path.basename(name_str).strip()
+    if not base_name or base_name in (".", ".."):
+        return "", "Invalid filename: Filename cannot be empty, '.', or '..'"
+    
+    invalid_chars = set('<>:"/\\|?*')
+    found_invalid = [c for c in base_name if c in invalid_chars]
+    if found_invalid:
+        return "", f"Invalid filename: Contains prohibited Windows characters: {', '.join(found_invalid)}"
+        
+    return base_name, None
+
+
 class FileCreator:
     def create_file(self, name: str, location: str = "desktop",
                     content: str = "", open_after: bool = True) -> str:
         log.info("create_file called: name=%s, location=%s", name, location)
         try:
-            folder = LOCATIONS.get(location.lower(), Path.home() / "Desktop")
+            folder = LOCATIONS.get(location.lower(), Path.home() / "Desktop").resolve()
             folder.mkdir(parents=True, exist_ok=True)
-            if not Path(name).suffix:
-                name += ".txt"
-            path = folder / name
+            
+            safe_name, err = validate_and_sanitize_filename(name)
+            if err:
+                log.warning("Filename validation failed: %s", err)
+                return err
+                
+            if not Path(safe_name).suffix:
+                safe_name += ".txt"
+                
+            path = (folder / safe_name).resolve()
+            
+            # Containment check
+            try:
+                if not path.is_relative_to(folder):
+                    log.warning("Path traversal attempt blocked: path %s is not inside %s", path, folder)
+                    return "Security Error: Path traversal detected. File must remain inside the designated directory."
+            except AttributeError:
+                try:
+                    path.relative_to(folder)
+                except ValueError:
+                    log.warning("Path traversal attempt blocked: path %s is not inside %s", path, folder)
+                    return "Security Error: Path traversal detected. File must remain inside the designated directory."
+
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
             result = f"File created: {path.name}\nLocation: {path}"
@@ -45,11 +94,31 @@ class FileCreator:
                           content: str = "") -> str:
         log.info("create_in_notepad called: name=%s, location=%s", name, location)
         try:
-            folder = LOCATIONS.get(location.lower(), Path.home() / "Desktop")
+            folder = LOCATIONS.get(location.lower(), Path.home() / "Desktop").resolve()
             folder.mkdir(parents=True, exist_ok=True)
-            if not Path(name).suffix:
-                name += ".txt"
-            path = folder / name
+            
+            safe_name, err = validate_and_sanitize_filename(name)
+            if err:
+                log.warning("Filename validation failed: %s", err)
+                return err
+                
+            if not Path(safe_name).suffix:
+                safe_name += ".txt"
+                
+            path = (folder / safe_name).resolve()
+            
+            # Containment check
+            try:
+                if not path.is_relative_to(folder):
+                    log.warning("Path traversal attempt blocked: path %s is not inside %s", path, folder)
+                    return "Security Error: Path traversal detected. File must remain inside the designated directory."
+            except AttributeError:
+                try:
+                    path.relative_to(folder)
+                except ValueError:
+                    log.warning("Path traversal attempt blocked: path %s is not inside %s", path, folder)
+                    return "Security Error: Path traversal detected. File must remain inside the designated directory."
+
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
             subprocess.Popen(["notepad.exe", str(path)])

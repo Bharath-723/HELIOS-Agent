@@ -106,6 +106,17 @@ def _safe_int(val, default: int) -> int:
         return default
 
 
+def _is_contained(path: Path, base: Path) -> bool:
+    try:
+        return path.resolve().is_relative_to(base.resolve())
+    except AttributeError:
+        try:
+            path.resolve().relative_to(base.resolve())
+            return True
+        except ValueError:
+            return False
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 class HELIOSAgent:
     """
@@ -821,6 +832,16 @@ class HELIOSAgent:
         try:
             if not name:
                 return "Please specify the filename."
+            
+            # Filename validation against Windows invalid characters
+            safe_name = os.path.basename(name).strip()
+            if not safe_name or safe_name in (".", ".."):
+                return "Invalid filename: Filename cannot be empty, '.', or '..'"
+            invalid_chars = set('<>:"/\\|?*')
+            found_invalid = [c for c in safe_name if c in invalid_chars]
+            if found_invalid:
+                return f"Invalid filename: Contains prohibited Windows characters: {', '.join(found_invalid)}"
+
             dst_dir = LOCATIONS.get(to_loc.lower()) if to_loc else None
             if dst_dir is None:
                 return (f"Unknown destination '{to_loc}'.\n"
@@ -829,37 +850,46 @@ class HELIOSAgent:
             src_path = None
             if from_loc:
                 src_dir = LOCATIONS.get(from_loc.lower())
-                if src_dir and (src_dir / name).exists():
-                    src_path = src_dir / name
+                if src_dir and (src_dir / safe_name).exists():
+                    src_path = src_dir / safe_name
 
             if src_path is None:
                 for folder in [Path.home() / f for f in
                                ("Downloads", "Desktop", "Documents",
                                 "Music", "Pictures", "Videos")]:
-                    if (folder / name).exists():
-                        src_path = folder / name
+                    if (folder / safe_name).exists():
+                        src_path = folder / safe_name
                         break
 
             if src_path is None:
-                results = self.desktop.search_file(name)
+                results = self.desktop.search_file(safe_name)
                 exact = [r for r in results
-                         if Path(r).name.lower() == name.lower()
+                         if Path(r).name.lower() == safe_name.lower()
                          and not any(s in r.lower() for s in
                                      ("program files", "windows", "system32",
                                       "programdata", "appdata"))]
                 if not exact:
-                    return f"File '{name}' not found."
+                    return f"File '{safe_name}' not found."
                 if len(exact) > 1:
                     return self._ask_disambig(exact, "move")
                 src_path = Path(exact[0])
 
-            dst_dir.mkdir(parents=True, exist_ok=True)
-            dst_path = dst_dir / src_path.name
-            shutil.move(str(src_path), str(dst_path))
-            log.info("Moved %s → %s", src_path, dst_path)
-            return (f"Moved: {src_path.name}\n"
-                    f"  From: {src_path.parent}\n"
-                    f"  To:   {dst_path.parent}")
+            # Strong Path Validation & Containment Check
+            src_path_abs = Path(src_path).resolve()
+            dst_dir_abs = Path(dst_dir).resolve()
+            dst_path_abs = (dst_dir_abs / src_path_abs.name).resolve()
+            home_dir = Path.home().resolve()
+
+            if not _is_contained(src_path_abs, home_dir) or not _is_contained(dst_path_abs, home_dir):
+                log.warning("Security Block: File move operation escaped home directory. Src: %s, Dst: %s", src_path_abs, dst_path_abs)
+                return "Security Error: File operations are restricted to your user profile directory."
+
+            dst_dir_abs.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(src_path_abs), str(dst_path_abs))
+            log.info("Moved %s → %s", src_path_abs, dst_path_abs)
+            return (f"Moved: {src_path_abs.name}\n"
+                    f"  From: {src_path_abs.parent}\n"
+                    f"  To:   {dst_path_abs.parent}")
         except PermissionError:
             return f"Permission denied moving '{name}'."
         except Exception as exc:
@@ -869,20 +899,43 @@ class HELIOSAgent:
     def _delete_file(self, path: str, name: str) -> str:
         try:
             target = Path(path) if path else None
-            if target is None and name:
-                results = self.desktop.search_file(name)
+            
+            # Filename validation if name is specified
+            if name:
+                safe_name = os.path.basename(name).strip()
+                if not safe_name or safe_name in (".", ".."):
+                    return "Invalid filename: Filename cannot be empty, '.', or '..'"
+                invalid_chars = set('<>:"/\\|?*')
+                found_invalid = [c for c in safe_name if c in invalid_chars]
+                if found_invalid:
+                    return f"Invalid filename: Contains prohibited Windows characters: {', '.join(found_invalid)}"
+            else:
+                safe_name = ""
+
+            if target is None and safe_name:
+                results = self.desktop.search_file(safe_name)
                 exact = [r for r in results
-                         if Path(r).name.lower() == name.lower()]
+                         if Path(r).name.lower() == safe_name.lower()]
                 if not exact:
-                    return f"File '{name}' not found."
+                    return f"File '{safe_name}' not found."
                 if len(exact) > 1:
                     return self._ask_disambig(exact, "open")
                 target = Path(exact[0])
+
             if target is None:
                 return "Please specify the file."
-            target.unlink()
-            log.info("Deleted: %s", target)
-            return f"Deleted: {target}"
+
+            # Strong Path Validation & Containment Check
+            target_abs = Path(target).resolve()
+            home_dir = Path.home().resolve()
+
+            if not _is_contained(target_abs, home_dir):
+                log.warning("Security Block: delete_file attempted outside home directory: %s", target_abs)
+                return "Security Error: Deleting files outside of your user profile directory is restricted."
+
+            target_abs.unlink()
+            log.info("Deleted: %s", target_abs)
+            return f"Deleted: {target_abs}"
         except Exception as exc:
             log.error("_delete_file error: %s", exc, exc_info=True)
             return f"Delete failed: {exc}"
