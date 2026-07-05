@@ -193,11 +193,18 @@ EXAMPLES:
 """
 
 
+import logging
+
+log = logging.getLogger("helios.nl_router")
+
+
 class NLRouter:
     def __init__(self, llm: HybridLLM):
         self.llm = llm
+        log.info("NLRouter initialized successfully.")
 
     def parse(self, user_input: str, context: str = "") -> dict:
+        log.info("parse called: user_input='%s'", user_input)
         # Programmatic shortcut for attached files conversion to PDF
         attachment_match = re.search(r'\[(DOCX|TXT|DOC|FILE):\s*(.*?)\]', user_input, re.IGNORECASE)
         if not attachment_match and context:
@@ -207,6 +214,7 @@ class NLRouter:
             lower_input = user_input.lower()
             if any(w in lower_input for w in ("convert", "pdf", "make a pdf", "export to pdf", "save as pdf")):
                 filename = attachment_match.group(2).strip()
+                log.info("Programmatic shortcut match: converting file '%s' to PDF", filename)
                 return {"action": "convert_to_pdf", "params": {"query": filename}}
 
         if context:
@@ -217,15 +225,27 @@ class NLRouter:
         else:
             prompt = f'Route this command: "{user_input}"'
 
-        resp = self.llm.chat(prompt=prompt, system=SYSTEM)
-        text = re.sub(r"```json|```", "", resp.content).strip()
         try:
-            return json.loads(text)
-        except Exception:
+            resp = self.llm.chat(prompt=prompt, system=SYSTEM)
+            text = re.sub(r"```json|```", "", resp.content).strip()
+        except Exception as chat_exc:
+            log.error("LLM chat request failed inside router: %s", chat_exc, exc_info=True)
+            return {"action": "general_chat", "params": {"message": user_input}}
+
+        try:
+            result = json.loads(text)
+            log.info("Successfully routed intent: %s", result)
+            return result
+        except Exception as exc:
+            log.warning("Primary JSON decoding failed for text '%s': %s", text, exc)
             m = re.search(r"\{.*?\}", text, re.DOTALL)
             if m:
                 try:
-                    return json.loads(m.group())
-                except Exception:
+                    result = json.loads(m.group())
+                    log.info("Regex extraction successfully routed intent: %s", result)
+                    return result
+                except Exception as exc2:
+                    log.warning("Regex extracted JSON decode failed: %s", exc2)
                     pass
+            log.error("Routing failed. Defaulting to general_chat. Raw LLM response: '%s'", resp.content)
         return {"action": "general_chat", "params": {"message": user_input}}

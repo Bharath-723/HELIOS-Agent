@@ -31,13 +31,14 @@ from modules.web_search import WebSearch
 from modules.chat_history import ChatHistory
 
 # ── Logger ────────────────────────────────────────────────────────────────────
+log_path = Path(__file__).parent / "helios.log"
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(),                            # console
-        logging.FileHandler("helios.log", encoding="utf-8"),  # file
+        logging.FileHandler(log_path, encoding="utf-8"),    # file
     ],
 )
 log = logging.getLogger("helios.agent")
@@ -94,6 +95,15 @@ def _ps(cmd: str, timeout: int = 20) -> tuple:
         return -1, "", "timeout"
     except Exception as exc:
         return -1, "", str(exc)
+
+
+def _safe_int(val, default: int) -> int:
+    try:
+        if val is None:
+            return default
+        return int(val)
+    except (ValueError, TypeError):
+        return default
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -674,17 +684,17 @@ class HELIOSAgent:
 
         # ── BRIGHTNESS ────────────────────────────────────────────────────────
         if action == "brightness_set":
-            return self.sysctrl.set_brightness(int(p.get("level", 70)))
+            return self.sysctrl.set_brightness(_safe_int(p.get("level"), 70))
         if action == "brightness_up":
-            return self.sysctrl.brightness_up(int(p.get("amount", 10)))
+            return self.sysctrl.brightness_up(_safe_int(p.get("amount"), 10))
         if action == "brightness_down":
-            return self.sysctrl.brightness_down(int(p.get("amount", 10)))
+            return self.sysctrl.brightness_down(_safe_int(p.get("amount"), 10))
 
         # ── VOLUME ────────────────────────────────────────────────────────────
         if action == "volume_up":
-            return self.desktop.volume_up(int(p.get("steps", 5)))
+            return self.desktop.volume_up(_safe_int(p.get("steps"), 5))
         if action == "volume_down":
-            return self.desktop.volume_down(int(p.get("steps", 5)))
+            return self.desktop.volume_down(_safe_int(p.get("steps"), 5))
         if action == "mute":
             return self.desktop.mute()
         if action == "pause_media":
@@ -695,7 +705,7 @@ class HELIOSAgent:
         # ── SYSTEM ────────────────────────────────────────────────────────────
         if action == "screenshot":         return self.desktop.screenshot()
         if action == "lock_screen":        return self.desktop.lock_screen()
-        if action == "shutdown":           return self.desktop.shutdown(int(p.get("delay", 0)))
+        if action == "shutdown":           return self.desktop.shutdown(_safe_int(p.get("delay"), 0))
         if action == "restart":            return self.desktop.restart()
         if action == "sleep":              return self.desktop.sleep()
         if action == "battery":            return self.desktop.battery_status()
