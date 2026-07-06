@@ -78,3 +78,7 @@ class RoutingResult:
     algorithm_version: str = "CAHRA-v1.0"
     strategy_name: str = "Capability-Aware Weighted Hybrid Routing"
     decision_trace: Optional[DecisionTrace] = None
+    candidate_ranking: List[str] = field(default_factory=list)
+    best_candidate: str = ""
+    selection_margin: float = 0.0
+    capability_mismatches: Dict[str, Dict[str, float]] = field(default_factory=dict)

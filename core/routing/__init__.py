@@ -14,3 +14,4 @@ from core.routing.score_engine import ScoreEngine
 from core.routing.decision_engine import DecisionEngine
 from core.routing.explainability import ExplainabilityEngine
 from core.routing.routing_logger import RoutingLogger
+from core.routing.candidate_manager import CandidateManager
