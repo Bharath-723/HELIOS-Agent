@@ -2,19 +2,15 @@
 
 ---
 
-### 1. Functional Intent Coverage
+### 1. Functional Coverage Summary
+All functional user workflows mapped to command routing intents execute with full parity:
 
-| Intent Category | Direct Command Prompt | Natural Language Prompt | E2E Status |
-| :--- | :--- | :--- | :--- |
-| **Notes Manager** | `create_note` | *"Create a note for tomorrow"* | **PASS** |
-| **File Finder** | `find_file` | *"Move my report to Desktop"* | **PASS** |
-| **System Info** | `system_info` | *"Show my computer specs"* | **PASS** |
-| **YouTube search** | `search_youtube` | *"Play relaxing music"* | **PASS** |
-| **Task Scheduler** | `schedule_task` | *"Schedule a reminder"* | **PASS** |
+* **General conversation**: Supported (handled via fallback or `general_chat` model selection).
+* **Notes & Tasks**: CRUD, index update, search, listing, and cron scheduling verified.
+* **File Management**: Blocked traversals, path constraints, creators, listing, searching.
+* **Media & Subprocesses**: YouTube search, browser launchers, PowerShell toggles.
 
 ---
 
-### 2. Validation Metrics
-* **Total Workflow Scenarios Tested**: 15
-* **Routing accuracy**: 100% (aligned with capabilities mappings)
-* **API execution stability**: 100%
+### 2. Prompt Resolution Mappings
+* E2E resolution successfully maps natural user prompt entries (e.g. *"Create a note for tomorrow"*, *"Move my report to Desktop"*) to corresponding action schemas.

@@ -3,11 +3,11 @@
 ---
 
 ### 1. Cross-Module Interaction Loops
-We verified that sequential module execution does not introduce thread locks, file access conflicts, or variables leaks:
+We verified that sequential module execution does not introduce thread locks, file access conflicts, or variable leaks:
 
 * **Workflow Loop**:
   ```
-  Create note -> Search note -> Schedule reminder -> Generate PDF -> Open file
+  Create note -> Search note -> Convert to PDF -> Move file -> Open file -> Schedule reminder
   ```
 * **Validation Outcome**:
   * Note directories and indexes are updated atomically.
