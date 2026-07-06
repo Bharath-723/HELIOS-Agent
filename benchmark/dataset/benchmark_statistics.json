@@ -1,0 +1,32 @@
+{
+  "total_prompts": 300,
+  "prompts_per_category": {
+    "file_management": 20,
+    "notes": 20,
+    "scheduling": 20,
+    "desktop_automation": 20,
+    "system_controls": 20,
+    "application_control": 20,
+    "document_processing": 20,
+    "web_search": 20,
+    "general_conversation": 20,
+    "hardware_queries": 20,
+    "privacy_sensitive": 20,
+    "multi_step": 20,
+    "mixed_workflow": 20,
+    "failure_recovery": 20,
+    "system_information": 20
+  },
+  "difficulty_distribution": {
+    "easy": 98,
+    "medium": 98,
+    "hard": 84,
+    "multi_step": 20
+  },
+  "route_distribution": {
+    "LOCAL": 260,
+    "CLOUD": 40
+  },
+  "local_ratio": 0.8666666666666667,
+  "cloud_ratio": 0.13333333333333333
+}
