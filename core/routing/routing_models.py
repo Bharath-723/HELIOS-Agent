@@ -51,6 +51,7 @@ class RoutingExplanation:
     constraints_triggered: List[str] = field(default_factory=list)
     timestamp: str = ""
     selected_model: str = ""
+    confidence: float = 0.0
 
 @dataclass
 class RoutingResult:
@@ -62,3 +63,5 @@ class RoutingResult:
     execution_time_ms: float = 0.0
     selected_model: str = ""
     constraints_triggered: List[str] = field(default_factory=list)
+    algorithm_version: str = "CAHRA-1.0"
+    routing_strategy: str = "ConstraintOnly"

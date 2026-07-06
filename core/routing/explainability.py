@@ -12,8 +12,8 @@ log = logging.getLogger("helios.routing.explainability")
 class ExplainabilityEngine:
     def explain(self, decision: RoutingDecision, features: RoutingFeatures,
                 constraint: ConstraintDecision, constraints_triggered: list,
-                selected_model: str) -> RoutingExplanation:
-        log.info("explain called: decision=%s, selected_model=%s", decision, selected_model)
+                selected_model: str, confidence: float = 0.0) -> RoutingExplanation:
+        log.info("explain called: decision=%s, selected_model=%s, confidence=%f", decision, selected_model, confidence)
         
         reasons = []
         if constraint != ConstraintDecision.NONE:
@@ -40,5 +40,6 @@ class ExplainabilityEngine:
             feature_values=feature_dict,
             constraints_triggered=constraints_triggered,
             timestamp=datetime.now().isoformat(),
-            selected_model=selected_model
+            selected_model=selected_model,
+            confidence=confidence
         )

@@ -3,7 +3,8 @@ import logging
 from core.routing.routing_models import (
     RoutingContext,
     RoutingResult,
-    RoutingDecision
+    RoutingDecision,
+    ConstraintDecision
 )
 from core.routing.feature_extractor import FeatureExtractor
 from core.routing.constraint_engine import ConstraintEngine
@@ -50,8 +51,9 @@ class RoutingEngine:
             selected_model = "None"
             
         # 6. Generate Explainability
+        confidence = 1.0 if constraint != ConstraintDecision.NONE else 0.5
         explanation = self.explainers.explain(
-            decision, features, constraint, triggered_constraints, selected_model
+            decision, features, constraint, triggered_constraints, selected_model, confidence=confidence
         )
         
         execution_time_ms = (time.perf_counter() - start_time) * 1000.0
@@ -65,7 +67,9 @@ class RoutingEngine:
             explanation=explanation,
             execution_time_ms=execution_time_ms,
             selected_model=selected_model,
-            constraints_triggered=triggered_constraints
+            constraints_triggered=triggered_constraints,
+            algorithm_version="CAHRA-1.0",
+            routing_strategy="ConstraintOnly"
         )
         
         # 8. Log structured result

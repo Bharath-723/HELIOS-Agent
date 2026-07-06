@@ -17,6 +17,8 @@ class RoutingLogger:
     def log_route(self, result: RoutingResult):
         log_entry = {
             "timestamp": datetime.now().isoformat(),
+            "algorithm_version": result.algorithm_version,
+            "routing_strategy": result.routing_strategy,
             "prompt": result.context.prompt,
             "intent": result.context.parsed_intent,
             "routing_features": {
@@ -32,7 +34,8 @@ class RoutingLogger:
             "cloud_score": result.scores.get("cloud_utility", 0.0),
             "decision": result.decision.value,
             "selected_model": result.selected_model,
-            "execution_time_ms": result.execution_time_ms
+            "execution_time_ms": result.execution_time_ms,
+            "confidence": result.explanation.confidence if result.explanation else 0.0
         }
         
         log.info("Routing Event Trace: %s", json.dumps(log_entry))
