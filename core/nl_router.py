@@ -197,10 +197,24 @@ import logging
 
 log = logging.getLogger("helios.nl_router")
 
+try:
+    from core.routing import RoutingEngine, RoutingContext, RoutingDecision
+    _cahra_available = True
+except ImportError:
+    _cahra_available = False
 
 class NLRouter:
     def __init__(self, llm: HybridLLM):
         self.llm = llm
+        if _cahra_available:
+            try:
+                self.routing_engine = RoutingEngine()
+                log.info("CAHRA routing engine loaded into NLRouter successfully.")
+            except Exception as e:
+                log.error("Failed to load CAHRA routing engine: %s", e)
+                self.routing_engine = None
+        else:
+            self.routing_engine = None
         log.info("NLRouter initialized successfully.")
 
     def parse(self, user_input: str, context: str = "") -> dict:
@@ -225,14 +239,76 @@ class NLRouter:
         else:
             prompt = f'Route this command: "{user_input}"'
 
-        try:
-            resp = self.llm.chat(prompt=prompt, system=SYSTEM)
-            text = re.sub(r"```json|```", "", resp.content).strip()
-        except Exception as chat_exc:
-            log.error("LLM chat request failed inside router: %s", chat_exc, exc_info=True)
-            return {"action": "general_chat", "params": {"message": user_input}}
+        cahra_success = False
+        resp = None
+
+        if self.routing_engine:
+            try:
+                import psutil
+                from datetime import datetime
+                
+                ram_avail = psutil.virtual_memory().available / (1024.0 * 1024.0)
+                cpu_p = psutil.cpu_percent()
+                active_cloud = self.llm.gemini_model if self.llm.cloud_provider == "gemini" else self.llm.openai_model
+                
+                routing_context = RoutingContext(
+                    prompt=user_input,
+                    parsed_intent=None,
+                    timestamp=datetime.now().isoformat(),
+                    internet_available=self.llm._internet_ok(),
+                    local_model_available=self.llm._ollama_alive(),
+                    cloud_available=self.llm._has_any_cloud_key(),
+                    active_local_model=self.llm.ollama_model,
+                    active_cloud_model=active_cloud,
+                    operating_system="Windows",
+                    cpu_percent=cpu_p,
+                    ram_available_mb=ram_avail,
+                    gpu_available=False
+                )
+                
+                res = self.routing_engine.route(routing_context)
+                best_candidate = res.selected_model
+                log.info("CAHRA selected candidate model: '%s' (Decision: %s)", best_candidate, res.decision.value)
+                
+                orig_mode = self.llm.mode
+                orig_model = self.llm.ollama_model
+                orig_cloud = self.llm.cloud_provider
+                orig_gemini = self.llm.gemini_model
+                orig_openai = self.llm.openai_model
+                
+                try:
+                    if res.decision == RoutingDecision.CLOUD:
+                        self.llm.mode = "online"
+                        if "gemini" in best_candidate:
+                            self.llm.cloud_provider = "gemini"
+                            self.llm.gemini_model = best_candidate
+                        elif "gpt" in best_candidate:
+                            self.llm.cloud_provider = "gpt"
+                            self.llm.openai_model = best_candidate
+                    else:
+                        self.llm.mode = "offline"
+                        self.llm.ollama_model = best_candidate
+                        
+                    resp = self.llm.chat(prompt=prompt, system=SYSTEM)
+                    cahra_success = True
+                finally:
+                    self.llm.mode = orig_mode
+                    self.llm.ollama_model = orig_model
+                    self.llm.cloud_provider = orig_cloud
+                    self.llm.gemini_model = orig_gemini
+                    self.llm.openai_model = orig_openai
+            except Exception as e:
+                log.error("CAHRA routing processing failed. Falling back to legacy: %s", e, exc_info=True)
+
+        if not cahra_success:
+            try:
+                resp = self.llm.chat(prompt=prompt, system=SYSTEM)
+            except Exception as chat_exc:
+                log.error("LLM chat request failed inside legacy router fallback: %s", chat_exc, exc_info=True)
+                return {"action": "general_chat", "params": {"message": user_input}}
 
         try:
+            text = re.sub(r"```json|```", "", resp.content).strip()
             result = json.loads(text)
             log.info("Successfully routed intent: %s", result)
             return result
