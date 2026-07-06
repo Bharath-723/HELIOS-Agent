@@ -1,0 +1,37 @@
+{
+  "privacy": {
+    "keywords": [
+      "password", "secret", "credentials", "token", "key", 
+      "salary", "ssn", "medical", "personal", "invoice", 
+      "bank", "financial", "identity", "social security"
+    ],
+    "privacy_score": 0.95,
+    "contains_sensitive_data": true
+  },
+  "freshness": {
+    "keywords": [
+      "news", "today", "current", "latest", "now", 
+      "weather", "stock", "price", "recent", "time", 
+      "date", "current event", "update"
+    ],
+    "freshness_score": 0.90,
+    "requires_internet": true
+  },
+  "local_data": {
+    "keywords": [
+      "file", "folder", "desktop", "document", "pdf", 
+      "docx", "notes", "database", "save", "delete", 
+      "create", "list", "read note", "write note"
+    ],
+    "contains_local_data": true,
+    "privacy_score": 0.70
+  },
+  "complexity": {
+    "keywords": [
+      "complex", "analyze", "explain", "code", "summarize", 
+      "debug", "solve", "math", "algorithm", "write script",
+      "program", "refactor"
+    ],
+    "complexity_score": 0.85
+  }
+}

@@ -8,6 +8,9 @@
 
 **HELIOS** (*Hybrid Extensible Language Intelligence Operating System*) is a premium, offline-first intelligent desktop automation and assistance system. It leverages natural language processing (local LLMs via Ollama) and advanced system APIs to automate workflows, manage files, control system hardware, write documents, and coordinate tools — all directly on your Windows PC through a clean chat interface.
 
+* **Current Baseline Release**: **HELIOS v1.0.1**
+* **Release Specifications**: [Release Manifest](RELEASE.md) | [Changelog](CHANGELOG.md) | [Known Limitations](KNOWN_LIMITATIONS.md)
+
 ---
 
 ## 🌟 Key Features

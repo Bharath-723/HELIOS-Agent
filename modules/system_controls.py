@@ -3,10 +3,13 @@ HELIOS - System Controls
 WiFi, Bluetooth, Airplane mode, Brightness, Dark mode, Power plans
 """
 
+import logging
 import subprocess
 import webbrowser
 import psutil
 import ctypes
+
+log = logging.getLogger("helios.system_controls")
 
 
 def _ask_admin_permission(message: str) -> bool:
@@ -17,10 +20,17 @@ def _ask_admin_permission(message: str) -> bool:
 
 
 def _ps(cmd: str, timeout: int = 15) -> tuple:
-    r = subprocess.run(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd],
-        capture_output=True, text=True, timeout=timeout)
-    return r.returncode, r.stdout.strip(), r.stderr.strip()
+    log.debug("Executing PowerShell command: %s", cmd)
+    try:
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd],
+            capture_output=True, text=True, timeout=timeout)
+        if r.returncode != 0:
+            log.warning("PowerShell returned non-zero code %d. Stderr: %s", r.returncode, r.stderr.strip())
+        return r.returncode, r.stdout.strip(), r.stderr.strip()
+    except Exception as exc:
+        log.error("PowerShell execution crashed: %s", exc, exc_info=True)
+        return -1, "", str(exc)
 
 
 def _get_wifi_adapter() -> str:
@@ -385,19 +395,22 @@ Write-Output 'OK'
 
     # ── Night Light ───────────────────────────────────────────────────────
     def night_light_on(self) -> str:
-        c, o, e = _ps("npx nightlight-cli on")
+        log.info("Turning Night Light ON")
+        c, o, e = _ps("npx --yes nightlight-cli on")
         if c == 0:
             return "Night Light turned ON."
         return f"Failed to turn ON Night Light: {e or o}"
 
     def night_light_off(self) -> str:
-        c, o, e = _ps("npx nightlight-cli off")
+        log.info("Turning Night Light OFF")
+        c, o, e = _ps("npx --yes nightlight-cli off")
         if c == 0:
             return "Night Light turned OFF."
         return f"Failed to turn OFF Night Light: {e or o}"
 
     def night_light_status(self) -> str:
-        c, o, e = _ps("npx nightlight-cli status")
+        log.info("Checking Night Light Status")
+        c, o, e = _ps("npx --yes nightlight-cli status")
         if c == 0:
             return f"Night Light status: {o.strip().upper()}"
         return f"Could not get Night Light status: {e or o}"

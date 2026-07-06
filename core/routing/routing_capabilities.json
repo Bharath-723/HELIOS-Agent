@@ -1,0 +1,34 @@
+{
+  "gemma3": {
+    "type": "local",
+    "privacy": 1.00,
+    "freshness": 0.20,
+    "complexity": 0.75,
+    "latency": 0.85,
+    "cost": 1.00
+  },
+  "mistral": {
+    "type": "local",
+    "privacy": 1.00,
+    "freshness": 0.15,
+    "complexity": 0.70,
+    "latency": 0.80,
+    "cost": 1.00
+  },
+  "gemini-2.0-flash": {
+    "type": "cloud",
+    "privacy": 0.35,
+    "freshness": 1.00,
+    "complexity": 0.95,
+    "latency": 0.60,
+    "cost": 0.25
+  },
+  "gpt-4": {
+    "type": "cloud",
+    "privacy": 0.30,
+    "freshness": 1.00,
+    "complexity": 0.98,
+    "latency": 0.50,
+    "cost": 0.15
+  }
+}

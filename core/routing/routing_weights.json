@@ -1,0 +1,25 @@
+{
+  "weights": {
+    "privacy": 0.35,
+    "freshness": 0.15,
+    "complexity": 0.25,
+    "latency": 0.15,
+    "cost": 0.10
+  },
+  "capabilities": {
+    "local": {
+      "privacy_capability": 1.00,
+      "freshness_capability": 0.00,
+      "complexity_capability": 0.60,
+      "latency_capability": 0.80,
+      "cost_capability": 1.00
+    },
+    "cloud": {
+      "privacy_capability": 0.30,
+      "freshness_capability": 1.00,
+      "complexity_capability": 0.95,
+      "latency_capability": 0.50,
+      "cost_capability": 0.20
+    }
+  }
+}

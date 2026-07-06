@@ -301,7 +301,10 @@ class DesktopAgent:
 
         # PowerShell fallback — restricted to user folders to avoid AppData loops/timeouts
         if words:
-            filter_name = words[0]
+            filter_name = re.sub(r'[^a-zA-Z0-9.\-_ ]', '', words[0]).strip()
+            if not filter_name:
+                log.warning("search_file: filter_name became empty after sanitization")
+                return results[:20]
             try:
                 paths_str = ", ".join(f"'$env:USERPROFILE\\{f}'" for f in USER_FOLDERS)
                 ps = (
@@ -372,13 +375,15 @@ class DesktopAgent:
                         stack.append(child)
                 except (PermissionError, OSError):
                     pass
-        if not results:
             try:
+                clean_sanitized = re.sub(r'[^a-zA-Z0-9.\-_ ]', '', clean).strip()
+                if not clean_sanitized:
+                    return results[:10]
                 paths_str = ", ".join(f"'$env:USERPROFILE\\{f}'" for f in USER_FOLDERS)
                 ps = (
                     f"Get-ChildItem -Path {paths_str} -Recurse -Directory "
                     "-ErrorAction SilentlyContinue "
-                    f"-Filter '*{clean}*' | "
+                    f"-Filter '*{clean_sanitized}*' | "
                     "Where-Object { "
                     "  !$_.Attributes.HasFlag("
                     "    [System.IO.FileAttributes]::ReparsePoint) } | "
