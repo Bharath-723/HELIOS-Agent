@@ -30,9 +30,9 @@ class RoutingContext:
 
 @dataclass
 class RoutingFeatures:
-    privacy_score: float = 0.0         # 0.0 to 1.0
-    freshness_score: float = 0.0       # 0.0 to 1.0
-    complexity_score: float = 0.0      # 0.0 to 1.0
+    privacy_score: float = 0.0         # 0.0 to 1.0 (acts as privacy_required)
+    freshness_score: float = 0.0       # 0.0 to 1.0 (acts as freshness_required)
+    complexity_score: float = 0.0      # 0.0 to 1.0 (acts as complexity_required)
     hardware_score: float = 0.0        # 0.0 to 1.0
     latency_score: float = 0.0         # 0.0 to 1.0
     cost_score: float = 0.0            # 0.0 to 1.0
@@ -54,6 +54,15 @@ class RoutingExplanation:
     confidence: float = 0.0
 
 @dataclass
+class DecisionTrace:
+    extracted_features: Dict[str, Any]
+    triggered_constraints: List[str]
+    local_score: float
+    cloud_score: float
+    routing_decision: str
+    confidence: float
+
+@dataclass
 class RoutingResult:
     decision: RoutingDecision
     features: RoutingFeatures
@@ -65,3 +74,4 @@ class RoutingResult:
     constraints_triggered: List[str] = field(default_factory=list)
     algorithm_version: str = "CAHRA-1.0"
     routing_strategy: str = "ConstraintOnly"
+    decision_trace: Optional[DecisionTrace] = None

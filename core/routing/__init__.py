@@ -4,7 +4,8 @@ from core.routing.routing_models import (
     RoutingContext,
     RoutingFeatures,
     RoutingExplanation,
-    RoutingResult
+    RoutingResult,
+    DecisionTrace
 )
 from core.routing.routing_engine import RoutingEngine
 from core.routing.feature_extractor import FeatureExtractor

@@ -4,7 +4,8 @@ from core.routing.routing_models import (
     RoutingContext,
     RoutingResult,
     RoutingDecision,
-    ConstraintDecision
+    ConstraintDecision,
+    DecisionTrace
 )
 from core.routing.feature_extractor import FeatureExtractor
 from core.routing.constraint_engine import ConstraintEngine
@@ -32,16 +33,19 @@ class RoutingEngine:
         # 1. Feature Extraction
         features = self.extractor.extract(context)
         
-        # 2. Constraints Check
+        # 2. Constraints Check (Stops early if a constraint forces a route)
         constraint, triggered_constraints = self.constraints.evaluate(context, features)
         
-        # 3. Scoring Evaluation (Placeholder utilities)
+        # 3. Scoring Evaluation (Utility calculations comparing requirements vs capabilities)
         utility_scores = self.scores.evaluate_scores(context, features)
         
-        # 4. Decision Logic
+        # 4. Decision Logic (Chooses higher score or constraint override)
         decision = self.decisions.make_decision(context, features, constraint, utility_scores)
         
-        # 5. Determine Selected Model based on decision
+        # 5. Confidence Score (Normalized relative difference)
+        confidence = self.decisions.calculate_confidence(constraint, utility_scores)
+        
+        # 6. Determine Selected Model
         selected_model = ""
         if decision == RoutingDecision.LOCAL:
             selected_model = context.active_local_model or "gemma3"
@@ -50,15 +54,31 @@ class RoutingEngine:
         else:
             selected_model = "None"
             
-        # 6. Generate Explainability
-        confidence = 1.0 if constraint != ConstraintDecision.NONE else 0.5
+        # 7. Generate Explainability
         explanation = self.explainers.explain(
             decision, features, constraint, triggered_constraints, selected_model, confidence=confidence
         )
         
         execution_time_ms = (time.perf_counter() - start_time) * 1000.0
         
-        # 7. Assemble Result
+        # 8. Create DecisionTrace
+        trace = DecisionTrace(
+            extracted_features={
+                "privacy_score": features.privacy_score,
+                "freshness_score": features.freshness_score,
+                "complexity_score": features.complexity_score,
+                "requires_internet": features.requires_internet,
+                "contains_local_data": features.contains_local_data,
+                "contains_sensitive_data": features.contains_sensitive_data
+            },
+            triggered_constraints=triggered_constraints,
+            local_score=utility_scores.get("local_utility", 0.0),
+            cloud_score=utility_scores.get("cloud_utility", 0.0),
+            routing_decision=decision.value,
+            confidence=confidence
+        )
+        
+        # 9. Assemble Result
         result = RoutingResult(
             decision=decision,
             features=features,
@@ -69,10 +89,11 @@ class RoutingEngine:
             selected_model=selected_model,
             constraints_triggered=triggered_constraints,
             algorithm_version="CAHRA-1.0",
-            routing_strategy="ConstraintOnly"
+            routing_strategy="ContextAwareUtility",
+            decision_trace=trace
         )
         
-        # 8. Log structured result
+        # 10. Log structured result
         try:
             self.logger.log_route(result)
         except Exception as log_exc:

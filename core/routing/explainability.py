@@ -21,10 +21,20 @@ class ExplainabilityEngine:
         else:
             reasons.append("No active constraints. Resolved via utility optimization scoring.")
             
-        if features.requires_internet:
-            reasons.append("Task requires active internet connection.")
-        if features.contains_sensitive_data:
-            reasons.append("Task processes sensitive local user credentials/data.")
+        if features.privacy_score >= 0.70:
+            reasons.append("High privacy requirements dictate local confinement.")
+        else:
+            reasons.append("Low privacy requirements; cloud processing allowed.")
+            
+        if features.freshness_score >= 0.70:
+            reasons.append("Fresh real-time external data is preferred.")
+        else:
+            reasons.append("Historical/cached local data is sufficient.")
+
+        if features.complexity_score >= 0.70:
+            reasons.append("High cognitive complexity task.")
+        else:
+            reasons.append("Standard complexity; efficient local handling suitable.")
             
         feature_dict = {
             "privacy_score": features.privacy_score,

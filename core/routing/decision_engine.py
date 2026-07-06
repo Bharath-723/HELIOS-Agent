@@ -18,9 +18,23 @@ class DecisionEngine:
         elif constraint == ConstraintDecision.FORCE_CLOUD:
             return RoutingDecision.CLOUD
             
-        if features.complexity_score >= 0.80:
+        local_val = scores.get("local_utility", 0.0)
+        cloud_val = scores.get("cloud_utility", 0.0)
+        
+        if local_val >= cloud_val:
+            return RoutingDecision.LOCAL
+        else:
             return RoutingDecision.CLOUD
-        if features.requires_internet:
-            return RoutingDecision.CLOUD
+
+    def calculate_confidence(self, constraint: ConstraintDecision, scores: dict) -> float:
+        if constraint != ConstraintDecision.NONE:
+            return 1.0
             
-        return RoutingDecision.LOCAL
+        local_val = scores.get("local_utility", 0.0)
+        cloud_val = scores.get("cloud_utility", 0.0)
+        
+        diff = abs(local_val - cloud_val)
+        max_val = max(local_val, cloud_val, 0.001)
+        
+        confidence = diff / max_val
+        return min(max(confidence, 0.0), 1.0)
