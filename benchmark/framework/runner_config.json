@@ -1,0 +1,7 @@
+{
+  "dataset_path": "benchmark/dataset/benchmark_dataset.json",
+  "output_dir": "data/benchmark_results",
+  "repetition_runs": 3,
+  "warmup_runs": 5,
+  "reproducibility_seed": 42
+}

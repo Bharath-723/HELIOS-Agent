@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HELIOS Benchmark Execution Result Schema",
+  "type": "object",
+  "properties": {
+    "prompt_id": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "execution_time_ms": { "type": "number" },
+    "observed_intent": { "type": "string" },
+    "observed_parameters": { "type": "object" },
+    "observed_route": { "type": "string" },
+    "observed_model": { "type": "string" },
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL", "PARTIAL"] }
+  },
+  "required": ["prompt_id", "timestamp", "execution_time_ms", "observed_intent", "observed_route"]
+}
