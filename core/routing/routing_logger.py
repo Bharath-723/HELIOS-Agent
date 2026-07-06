@@ -17,8 +17,9 @@ class RoutingLogger:
     def log_route(self, result: RoutingResult):
         log_entry = {
             "timestamp": datetime.now().isoformat(),
+            "algorithm_name": result.algorithm_name,
             "algorithm_version": result.algorithm_version,
-            "routing_strategy": result.routing_strategy,
+            "strategy_name": result.strategy_name,
             "prompt": result.context.prompt,
             "intent": result.context.parsed_intent,
             "routing_features": {

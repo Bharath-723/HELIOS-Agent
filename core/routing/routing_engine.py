@@ -36,8 +36,20 @@ class RoutingEngine:
         # 2. Constraints Check (Stops early if a constraint forces a route)
         constraint, triggered_constraints = self.constraints.evaluate(context, features)
         
-        # 3. Scoring Evaluation (Utility calculations comparing requirements vs capabilities)
-        utility_scores = self.scores.evaluate_scores(context, features)
+        # 3. Model-Aware Utility Scoring (evaluating specific candidate profiles)
+        local_model = context.active_local_model or "gemma3"
+        cloud_model = context.active_cloud_model or "gemini-2.0-flash"
+        
+        local_eval = self.scores.evaluate_model_utility(local_model, context, features)
+        cloud_eval = self.scores.evaluate_model_utility(cloud_model, context, features)
+        
+        local_utility = local_eval["total_utility"]
+        cloud_utility = cloud_eval["total_utility"]
+        
+        utility_scores = {
+            "local_utility": local_utility,
+            "cloud_utility": cloud_utility
+        }
         
         # 4. Decision Logic (Chooses higher score or constraint override)
         decision = self.decisions.make_decision(context, features, constraint, utility_scores)
@@ -48,9 +60,9 @@ class RoutingEngine:
         # 6. Determine Selected Model
         selected_model = ""
         if decision == RoutingDecision.LOCAL:
-            selected_model = context.active_local_model or "gemma3"
+            selected_model = local_model
         elif decision == RoutingDecision.CLOUD:
-            selected_model = context.active_cloud_model or "gemini-2.0-flash"
+            selected_model = cloud_model
         else:
             selected_model = "None"
             
@@ -72,10 +84,14 @@ class RoutingEngine:
                 "contains_sensitive_data": features.contains_sensitive_data
             },
             triggered_constraints=triggered_constraints,
-            local_score=utility_scores.get("local_utility", 0.0),
-            cloud_score=utility_scores.get("cloud_utility", 0.0),
+            local_score=local_utility,
+            cloud_score=cloud_utility,
             routing_decision=decision.value,
-            confidence=confidence
+            confidence=confidence,
+            score_breakdown={
+                "local_breakdown": local_eval["breakdown"],
+                "cloud_breakdown": cloud_eval["breakdown"]
+            }
         )
         
         # 9. Assemble Result
@@ -88,8 +104,9 @@ class RoutingEngine:
             execution_time_ms=execution_time_ms,
             selected_model=selected_model,
             constraints_triggered=triggered_constraints,
-            algorithm_version="CAHRA-1.0",
-            routing_strategy="ContextAwareUtility",
+            algorithm_name="CAHRA",
+            algorithm_version="CAHRA-v1.0",
+            strategy_name="Capability-Aware Weighted Hybrid Routing",
             decision_trace=trace
         )
         

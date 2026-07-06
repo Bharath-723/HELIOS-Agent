@@ -52,6 +52,7 @@ class RoutingExplanation:
     timestamp: str = ""
     selected_model: str = ""
     confidence: float = 0.0
+    rejected_alternatives: List[str] = field(default_factory=list)
 
 @dataclass
 class DecisionTrace:
@@ -61,6 +62,7 @@ class DecisionTrace:
     cloud_score: float
     routing_decision: str
     confidence: float
+    score_breakdown: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class RoutingResult:
@@ -72,6 +74,7 @@ class RoutingResult:
     execution_time_ms: float = 0.0
     selected_model: str = ""
     constraints_triggered: List[str] = field(default_factory=list)
-    algorithm_version: str = "CAHRA-1.0"
-    routing_strategy: str = "ConstraintOnly"
+    algorithm_name: str = "CAHRA"
+    algorithm_version: str = "CAHRA-v1.0"
+    strategy_name: str = "Capability-Aware Weighted Hybrid Routing"
     decision_trace: Optional[DecisionTrace] = None

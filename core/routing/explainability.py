@@ -36,6 +36,25 @@ class ExplainabilityEngine:
         else:
             reasons.append("Standard complexity; efficient local handling suitable.")
             
+        rejected_alts = []
+        if decision == RoutingDecision.LOCAL:
+            cloud_reason = "Rejected CLOUD because:"
+            rejs = []
+            if features.privacy_score >= 0.70:
+                rejs.append("lower privacy satisfaction / privacy penalty")
+            if not features.requires_internet:
+                rejs.append("internet not required")
+            rejs.append("higher operational cost")
+            rejected_alts.append(f"{cloud_reason} {', '.join(rejs)}.")
+        elif decision == RoutingDecision.CLOUD:
+            local_reason = "Rejected LOCAL because:"
+            rejs = []
+            if features.requires_internet:
+                rejs.append("requires internet connectivity")
+            if features.complexity_score >= 0.70:
+                rejs.append("insufficient local complexity capability")
+            rejected_alts.append(f"{local_reason} {', '.join(rejs)}.")
+            
         feature_dict = {
             "privacy_score": features.privacy_score,
             "freshness_score": features.freshness_score,
@@ -51,5 +70,6 @@ class ExplainabilityEngine:
             constraints_triggered=constraints_triggered,
             timestamp=datetime.now().isoformat(),
             selected_model=selected_model,
-            confidence=confidence
+            confidence=confidence,
+            rejected_alternatives=rejected_alts
         )
