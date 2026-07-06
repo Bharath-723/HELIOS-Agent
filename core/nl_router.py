@@ -251,12 +251,18 @@ class NLRouter:
                 cpu_p = psutil.cpu_percent()
                 active_cloud = self.llm.gemini_model if self.llm.cloud_provider == "gemini" else self.llm.openai_model
                 
+                now = datetime.now()
+                if not hasattr(self, "_last_net_check") or (now - self._last_net_check).total_seconds() > 10:
+                    self._cached_internet = self.llm._internet_ok()
+                    self._cached_ollama = self.llm._ollama_alive()
+                    self._last_net_check = now
+                
                 routing_context = RoutingContext(
                     prompt=user_input,
                     parsed_intent=None,
-                    timestamp=datetime.now().isoformat(),
-                    internet_available=self.llm._internet_ok(),
-                    local_model_available=self.llm._ollama_alive(),
+                    timestamp=now.isoformat(),
+                    internet_available=self._cached_internet,
+                    local_model_available=self._cached_ollama,
                     cloud_available=self.llm._has_any_cloud_key(),
                     active_local_model=self.llm.ollama_model,
                     active_cloud_model=active_cloud,
@@ -291,6 +297,15 @@ class NLRouter:
                         
                     resp = self.llm.chat(prompt=prompt, system=SYSTEM)
                     cahra_success = True
+                    
+                    try:
+                        from core.routing.routing_diagnostics import RoutingDiagnostics
+                        diag = RoutingDiagnostics()
+                        if res.decision_snapshot:
+                            diag.export_snapshot_json(res.decision_snapshot)
+                        diag.export_ranking_json(res.candidate_ranking)
+                    except Exception as diag_exc:
+                        log.error("Failed to export production CAHRA diagnostics: %s", diag_exc)
                 finally:
                     self.llm.mode = orig_mode
                     self.llm.ollama_model = orig_model
