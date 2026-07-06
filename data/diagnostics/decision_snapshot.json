@@ -1,0 +1,45 @@
+{
+  "prompt": "summarize report architecture draft",
+  "extracted_requirements": {
+    "privacy": 0.0,
+    "freshness": 0.0,
+    "complexity": 0.85
+  },
+  "candidate_models": [
+    "gemini-2.0-flash",
+    "gpt-4"
+  ],
+  "utility_scores": {
+    "gemini-2.0-flash": 0.666875,
+    "gpt-4": 0.6482499999999999
+  },
+  "capability_mismatches": {
+    "gemini-2.0-flash": {
+      "privacy": 0.35,
+      "freshness": 1.0,
+      "complexity": 0.09999999999999998
+    },
+    "gpt-4": {
+      "privacy": 0.3,
+      "freshness": 1.0,
+      "complexity": 0.13
+    }
+  },
+  "ranking": [
+    "gemini-2.0-flash",
+    "gpt-4"
+  ],
+  "selected_model": "gemini-2.0-flash",
+  "rejected_models": [
+    "gpt-4"
+  ],
+  "selection_margin": 0.018625000000000114,
+  "confidence": 1.0,
+  "triggered_constraints": [
+    "check_local_model"
+  ],
+  "execution_time_ms": 0.17499999376013875,
+  "timestamp": "2026-07-06T22:24:56.662259",
+  "algorithm_version": "CAHRA-v1.0",
+  "strategy_version": "Capability-Aware Weighted Hybrid Routing"
+}

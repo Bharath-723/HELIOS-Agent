@@ -29,25 +29,27 @@ class RoutingEngine:
         log.info("Research RoutingEngine (Ranker) initialized successfully.")
 
     def route(self, context: RoutingContext) -> RoutingResult:
-        start_time = time.perf_counter()
-        log.info("RoutingEngine.route called for prompt='%s'", context.prompt)
+        total_start = time.perf_counter()
         
-        # 1. Feature Extraction
+        # 1. Feature Extraction Time
+        t0 = time.perf_counter()
         features = self.extractor.extract(context)
+        feat_time = (time.perf_counter() - t0) * 1000.0
         
-        # 2. Constraints Check
+        # 2. Constraints Check Time
+        t1 = time.perf_counter()
         constraint, triggered_constraints = self.constraints.evaluate(context, features)
+        constraint_time = (time.perf_counter() - t1) * 1000.0
         
-        # 3. Retrieve available candidate models
+        # 3. Score Calculation and Candidate Evaluation Time
+        t2 = time.perf_counter()
         available_models = self.candidate_mgr.get_available_candidates(context)
         if not available_models:
             available_models = ["gemma3"]
             
-        # 4. Evaluate each candidate model
         model_utilities = {}
         model_breakdowns = {}
         mismatches = {}
-        
         r_p = features.privacy_score
         r_f = features.freshness_score
         r_cx = features.complexity_score
@@ -63,12 +65,13 @@ class RoutingEngine:
                 "freshness": abs(r_f - eff["freshness"]),
                 "complexity": abs(r_cx - eff["complexity"])
             }
+        score_time = (time.perf_counter() - t2) * 1000.0
             
-        # 5. Rank Candidates by total utility (descending)
+        # 4. Candidate Ranking and Decision Selection Time
+        t3 = time.perf_counter()
         ranked_candidates = sorted(available_models, key=lambda m: model_utilities[m], reverse=True)
         best_candidate = ranked_candidates[0]
         
-        # 6. Compute Selection Margin
         highest_utility = model_utilities[best_candidate]
         if len(ranked_candidates) > 1:
             second_candidate = ranked_candidates[1]
@@ -77,7 +80,6 @@ class RoutingEngine:
         else:
             selection_margin = highest_utility
             
-        # 7. Resolve final routing decision
         forced_candidate = None
         if constraint == ConstraintDecision.FORCE_LOCAL:
             local_cands = [m for m in ranked_candidates if self.candidate_mgr.profiles.get(m, {}).get("type") == "local"]
@@ -99,14 +101,15 @@ class RoutingEngine:
             
         selected_model = forced_candidate if forced_candidate else best_candidate
         
-        # 8. Compute Confidence
         if constraint != ConstraintDecision.NONE:
             confidence = 1.0
         else:
             confidence = selection_margin / max(highest_utility, 0.001)
             confidence = min(max(confidence, 0.0), 1.0)
+        ranking_time = (time.perf_counter() - t3) * 1000.0
             
-        # 9. Generate Explainability
+        # 5. Explanation Generation Time
+        t4 = time.perf_counter()
         explanation = self.explainers.explain(
             decision, features, constraint, triggered_constraints, selected_model,
             confidence=confidence,
@@ -114,10 +117,10 @@ class RoutingEngine:
             capability_mismatches=mismatches,
             selection_margin=selection_margin
         )
+        explanation_time = (time.perf_counter() - t4) * 1000.0
         
-        execution_time_ms = (time.perf_counter() - start_time) * 1000.0
+        total_time_ms = (time.perf_counter() - total_start) * 1000.0
         
-        # 10. Assemble trace
         local_model_name = context.active_local_model or "gemma3"
         cloud_model_name = context.active_cloud_model or "gemini-2.0-flash"
         
@@ -151,7 +154,7 @@ class RoutingEngine:
                 "cloud_utility": model_utilities.get(cloud_model_name, 0.5)
             },
             explanation=explanation,
-            execution_time_ms=execution_time_ms,
+            execution_time_ms=total_time_ms,
             selected_model=selected_model,
             constraints_triggered=triggered_constraints,
             algorithm_name="CAHRA",
@@ -164,6 +167,26 @@ class RoutingEngine:
             capability_mismatches=mismatches
         )
         
+        timings = {
+            "feature_extraction_time_ms": feat_time,
+            "constraint_evaluation_time_ms": constraint_time,
+            "score_calculation_time_ms": score_time,
+            "ranking_time_ms": ranking_time,
+            "explanation_generation_time_ms": explanation_time,
+            "total_time_ms": total_time_ms
+        }
+        
+        try:
+            from core.routing.routing_diagnostics import RoutingDiagnostics
+            diagnostics = RoutingDiagnostics()
+            snapshot = diagnostics.compile_snapshot(result, timings)
+            result.decision_snapshot = snapshot
+            
+            log.info("CAHRA Timings Detail: Features=%.2fms, Constraints=%.2fms, Scores=%.2fms, Ranking=%.2fms, Explain=%.2fms, Total=%.2fms",
+                     feat_time, constraint_time, score_time, ranking_time, explanation_time, total_time_ms)
+        except Exception as snap_exc:
+            log.error("Failed to compile decision snapshot in routing engine: %s", snap_exc)
+            
         try:
             self.logger.log_route(result)
         except Exception as log_exc:

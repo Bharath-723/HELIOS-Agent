@@ -5,7 +5,8 @@ from core.routing.routing_models import (
     RoutingFeatures,
     RoutingExplanation,
     RoutingResult,
-    DecisionTrace
+    DecisionTrace,
+    DecisionSnapshot
 )
 from core.routing.routing_engine import RoutingEngine
 from core.routing.feature_extractor import FeatureExtractor
@@ -15,3 +16,4 @@ from core.routing.decision_engine import DecisionEngine
 from core.routing.explainability import ExplainabilityEngine
 from core.routing.routing_logger import RoutingLogger
 from core.routing.candidate_manager import CandidateManager
+from core.routing.routing_diagnostics import RoutingDiagnostics

@@ -65,6 +65,26 @@ class DecisionTrace:
     score_breakdown: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
+class DecisionSnapshot:
+    prompt: str
+    extracted_requirements: Dict[str, float]
+    candidate_models: List[str]
+    capability_profiles: Dict[str, Any]
+    effective_capabilities: Dict[str, Any]
+    utility_scores: Dict[str, float]
+    capability_mismatches: Dict[str, Dict[str, float]]
+    ranking: List[str]
+    selected_model: str
+    rejected_models: List[str]
+    selection_margin: float
+    confidence: float
+    triggered_constraints: List[str]
+    execution_time_ms: float
+    timestamp: str
+    algorithm_version: str
+    strategy_version: str
+
+@dataclass
 class RoutingResult:
     decision: RoutingDecision
     features: RoutingFeatures
@@ -82,3 +102,4 @@ class RoutingResult:
     best_candidate: str = ""
     selection_margin: float = 0.0
     capability_mismatches: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    decision_snapshot: Optional[DecisionSnapshot] = None
