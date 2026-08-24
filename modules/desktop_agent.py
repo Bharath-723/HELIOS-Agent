@@ -58,23 +58,47 @@ AUDIO_EXTS: set = {".mp3", ".wav", ".flac", ".aac", ".ogg", ".wma", ".m4a"}
 
 # ── App → executable map ──────────────────────────────────────────────────────
 APP_MAP: dict = {
-    "chrome":         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    "firefox":        r"C:\Program Files\Mozilla Firefox\firefox.exe",
-    "edge":           r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    "vlc":            r"C:\Program Files\VideoLAN\VLC\vlc.exe",
-    "notepad":        "notepad.exe",
-    "calculator":     "calc.exe",
-    "paint":          "mspaint.exe",
-    "cmd":            "cmd.exe",
-    "powershell":     "powershell.exe",
-    "taskmanager":    "taskmgr.exe",
-    "task manager":   "taskmgr.exe",
-    "vscode":         os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
-    "vs code":        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
-    "word":           r"C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE",
-    "excel":          r"C:\Program Files\Microsoft Office\root\Office16\EXCEL.EXE",
-    "powerpoint":     r"C:\Program Files\Microsoft Office\root\Office16\POWERPNT.EXE",
-    "spotify":        os.path.expandvars(r"%APPDATA%\Spotify\Spotify.exe"),
+    "chrome":                  r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "google chrome":           r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "firefox":                 r"C:\Program Files\Mozilla Firefox\firefox.exe",
+    "mozilla firefox":         r"C:\Program Files\Mozilla Firefox\firefox.exe",
+    "edge":                    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    "microsoft edge":          r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    "vlc":                     r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+    "vlc media player":        r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+    "notepad":                 "notepad.exe",
+    "calculator":              "calc.exe",
+    "calc":                    "calc.exe",
+    "paint":                   "mspaint.exe",
+    "ms paint":                "mspaint.exe",
+    "cmd":                     "cmd.exe",
+    "command prompt":          "cmd.exe",
+    "powershell":              "powershell.exe",
+    "taskmanager":             "taskmgr.exe",
+    "task manager":            "taskmgr.exe",
+    "vscode":                  os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
+    "vs code":                 os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
+    "visual studio code":      os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
+    "word":                    r"C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE",
+    "microsoft word":          r"C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE",
+    "excel":                   r"C:\Program Files\Microsoft Office\root\Office16\EXCEL.EXE",
+    "microsoft excel":         r"C:\Program Files\Microsoft Office\root\Office16\EXCEL.EXE",
+    "powerpoint":              r"C:\Program Files\Microsoft Office\root\Office16\POWERPNT.EXE",
+    "microsoft powerpoint":    r"C:\Program Files\Microsoft Office\root\Office16\POWERPNT.EXE",
+    "spotify":                 os.path.expandvars(r"%APPDATA%\Spotify\Spotify.exe"),
+    "teams":                   os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Teams\current\Teams.exe"),
+    "microsoft teams":         os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Teams\current\Teams.exe"),
+    "discord":                 os.path.expandvars(r"%LOCALAPPDATA%\Discord\Update.exe"),
+    "zoom":                    os.path.expandvars(r"%APPDATA%\Zoom\bin\Zoom.exe"),
+    "obs":                     r"C:\Program Files\obs-studio\bin\64bit\obs64.exe",
+    "obs studio":              r"C:\Program Files\obs-studio\bin\64bit\obs64.exe",
+    "notepad++":               r"C:\Program Files\Notepad++\notepad++.exe",
+    "7zip":                    r"C:\Program Files\7-Zip\7zFM.exe",
+    "7-zip":                   r"C:\Program Files\7-Zip\7zFM.exe",
+    "winrar":                  r"C:\Program Files\WinRAR\WinRAR.exe",
+    "radeon software":         os.path.expandvars(r"%PROGRAMFILES%\AMD\CNext\CNext\RadeonSoftware.exe"),
+    "amd software":            os.path.expandvars(r"%PROGRAMFILES%\AMD\CNext\CNext\RadeonSoftware.exe"),
+    "amd radeon software":     os.path.expandvars(r"%PROGRAMFILES%\AMD\CNext\CNext\RadeonSoftware.exe"),
     # Explorer handled specially — do NOT put "explorer.exe" here
 }
 
@@ -502,42 +526,329 @@ class DesktopAgent:
             log.error("open_explorer_search error: %s", exc, exc_info=True)
             return f"Error opening Explorer: {exc}"
 
+    # ── File Operations & Manipulation ───────────────────────────────────────
+    def _resolve_file_path(self, query: str) -> Path | None:
+        if not query:
+            return None
+        p = Path(query)
+        if p.exists():
+            return p
+        matches = self.search_file(query)
+        if matches:
+            return Path(matches[0])
+        return None
+
+    def _resolve_target_dir(self, dest: str) -> Path:
+        d_lower = dest.lower().strip() if dest else ""
+        home = Path.home()
+        targets = {
+            "desktop": home / "Desktop",
+            "downloads": home / "Downloads",
+            "documents": home / "Documents",
+            "pictures": home / "Pictures",
+            "videos": home / "Videos",
+            "music": home / "Music",
+            "c:\\users": Path("C:/Users"),
+            "users": Path("C:/Users"),
+        }
+        if d_lower in targets:
+            return targets[d_lower]
+        p = Path(dest) if dest else home / "Desktop"
+        if p.exists():
+            return p
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def move_file(self, src: str, dest: str = "") -> str:
+        """Move or cut/paste a file/folder to a target directory or new path."""
+        try:
+            src_path = self._resolve_file_path(src)
+            if not src_path or not src_path.exists():
+                return f"Source file '{src}' not found on PC."
+
+            dest_path = self._resolve_target_dir(dest)
+            import shutil
+            final_dest = shutil.move(str(src_path), str(dest_path))
+            log.info("move_file: moved %s to %s", src_path, final_dest)
+            return f"📁 Moved '{src_path.name}' to '{final_dest}' successfully!"
+        except Exception as exc:
+            log.error("move_file error: %s", exc, exc_info=True)
+            return f"Could not move file: {exc}"
+
+    def copy_file(self, src: str, dest: str = "") -> str:
+        """Copy a file/folder to a target directory."""
+        try:
+            src_path = self._resolve_file_path(src)
+            if not src_path or not src_path.exists():
+                return f"Source file '{src}' not found on PC."
+
+            dest_path = self._resolve_target_dir(dest)
+            import shutil
+            if src_path.is_dir():
+                final_dest = shutil.copytree(str(src_path), str(dest_path / src_path.name), dirs_exist_ok=True)
+            else:
+                final_dest = shutil.copy2(str(src_path), str(dest_path))
+            log.info("copy_file: copied %s to %s", src_path, final_dest)
+            return f"📋 Copied '{src_path.name}' to '{final_dest}' successfully!"
+        except Exception as exc:
+            log.error("copy_file error: %s", exc, exc_info=True)
+            return f"Could not copy file: {exc}"
+
+    def rename_file(self, src: str, new_name: str) -> str:
+        """Rename a file or folder."""
+        try:
+            src_path = self._resolve_file_path(src)
+            if not src_path or not src_path.exists():
+                return f"File '{src}' not found."
+
+            clean_new = Path(new_name).name
+            target = src_path.parent / clean_new
+            src_path.rename(target)
+            log.info("rename_file: renamed %s to %s", src_path, target)
+            return f"✏ Renamed '{src_path.name}' to '{target.name}' successfully!"
+        except Exception as exc:
+            log.error("rename_file error: %s", exc, exc_info=True)
+            return f"Could not rename file: {exc}"
+
+    def delete_file(self, path_str: str) -> str:
+        """Delete a file or folder safely."""
+        try:
+            src_path = self._resolve_file_path(path_str)
+            if not src_path or not src_path.exists():
+                return f"File '{path_str}' not found."
+
+            if src_path.is_dir():
+                import shutil
+                shutil.rmtree(str(src_path))
+            else:
+                src_path.unlink()
+            log.info("delete_file: deleted %s", src_path)
+            return f"🗑 Deleted '{src_path.name}' successfully!"
+        except Exception as exc:
+            log.error("delete_file error: %s", exc, exc_info=True)
+            return f"Could not delete file: {exc}"
+
+    def deep_file_search(self, query: str, auto_play: bool = False) -> str:
+        """
+        Deep recursive filesystem search across all accessible Windows drives and user folders.
+        Finds files by keywords (e.g. 'spiderman movie downloaded a year ago').
+        If auto_play is True or prompt contains play/watch, automatically opens/plays the movie!
+        """
+        try:
+            # Strip punctuation first
+            raw_clean = re.sub(r'[^a-zA-Z0-9\s]', ' ', query.lower())
+            stop_words = {
+                "i", "downloaded", "a", "year", "ago", "movie", "video", "film", "file",
+                "where", "is", "got", "saved", "save", "it", "search", "find", "for", "me",
+                "can", "you", "if", "found", "kindly", "play", "the", "open", "watch", "run",
+                "but", "dont", "don't", "know", "even", "by", "searching", "in", "explorer",
+                "also", "not", "visible", "show", "tell", "location", "path"
+            }
+            tokens = [t.strip() for t in raw_clean.split() if len(t.strip()) > 1 and t.strip() not in stop_words]
+
+            if not tokens:
+                # Fallback to key nouns in query
+                tokens = [t.strip() for t in raw_clean.split() if len(t.strip()) > 2]
+
+            log.info("deep_file_search | tokens=%s raw_query='%s'", tokens, query)
+
+            home = Path.home()
+            search_roots = []
+            for f in ["Downloads", "Videos", "Desktop", "Documents", "Pictures", "Music"]:
+                if (home / f).is_dir():
+                    search_roots.append(home / f)
+
+            for letter in ["C", "D", "E", "F"]:
+                drive_p = Path(f"{letter}:/")
+                if drive_p.is_dir() and drive_p not in search_roots:
+                    search_roots.append(drive_p)
+
+            results: list[Path] = []
+            for root in search_roots:
+                if len(results) >= 20:
+                    break
+                matched = _safe_rglob(root, words=tokens, max_results=10)
+                for item in matched:
+                    if item not in results:
+                        results.append(item)
+
+            # If multi-token match returned empty, try single best token
+            if not results and tokens:
+                best_tokens = sorted(tokens, key=len, reverse=True)
+                for t in best_tokens:
+                    for root in search_roots:
+                        if len(results) >= 20:
+                            break
+                        matched = _safe_rglob(root, words=[t], max_results=10)
+                        for item in matched:
+                            if item not in results:
+                                results.append(item)
+
+            if not results:
+                return f"🔍 **Deep Search Complete**: No files matching '{' '.join(tokens)}' found on your computer."
+
+            should_play = auto_play or any(kw in query.lower() for kw in ("play", "watch", "open", "launch", "run"))
+
+            video_matches = [p for p in results if p.suffix.lower() in VIDEO_EXTS]
+            chosen = video_matches[0] if video_matches else results[0]
+
+            msg = f"🔍 **Deep Search Result**:\nFound {len(results)} matching file(s):\n"
+            msg += "\n".join(f"  • **{p.name}**\n    `{p.absolute()}`" for p in results[:5])
+
+            if should_play and chosen:
+                try:
+                    os.startfile(str(chosen))
+                    msg += f"\n\n🎬 **Playing file now**: `{chosen.name}`"
+                    log.info("deep_file_search: playing movie file %s", chosen)
+                except Exception as exc:
+                    msg += f"\n\n⚠ Could not auto-play file: {exc}"
+
+            return msg
+        except Exception as exc:
+            log.error("deep_file_search error: %s", exc, exc_info=True)
+            return f"Deep search error: {exc}"
+
     # ── App control ───────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _find_shortcut(query: str) -> str | None:
+        """
+        Search Desktop and Start Menu for a .lnk shortcut whose name
+        contains all words from `query`.  Returns the full .lnk path or None.
+        Searches: user Desktop, public Desktop, user Start Menu, all-users
+        Start Menu.
+        """
+        words = query.lower().split()
+        search_dirs = [
+            Path.home() / "Desktop",
+            Path(os.environ.get("PUBLIC", r"C:\Users\Public")) / "Desktop",
+            Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu",
+            Path(os.environ.get("ALLUSERSPROFILE", r"C:\ProgramData"))
+            / "Microsoft" / "Windows" / "Start Menu",
+        ]
+        candidates: list[tuple[int, str]] = []   # (match_score, path)
+        for d in search_dirs:
+            if not d.is_dir():
+                continue
+            try:
+                for lnk in d.rglob("*.lnk"):
+                    name_lower = lnk.stem.lower()
+                    if all(w in name_lower for w in words):
+                        # Prefer shorter / more specific names
+                        candidates.append((len(name_lower), str(lnk)))
+            except Exception:
+                pass
+        if candidates:
+            candidates.sort(key=lambda x: x[0])
+            return candidates[0][1]
+        return None
+
+    @staticmethod
+    def _find_uwp_app(query: str) -> str | None:
+        """
+        Query Windows Store / UWP apps via PowerShell Get-StartApps.
+        Returns the AppID string suitable for Start-Process, or None.
+        """
+        try:
+            words = query.lower().split()
+            r = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "Get-StartApps | Select-Object Name,AppID | ConvertTo-Json -Compress"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if r.returncode != 0 or not r.stdout.strip():
+                return None
+            import json
+            items = json.loads(r.stdout)
+            if isinstance(items, dict):   # single result
+                items = [items]
+            candidates: list[tuple[int, str]] = []
+            for item in items:
+                name  = (item.get("Name") or "").lower()
+                appid = item.get("AppID") or ""
+                if not appid:
+                    continue
+                if all(w in name for w in words):
+                    candidates.append((len(name), appid))
+            if candidates:
+                candidates.sort(key=lambda x: x[0])
+                return candidates[0][1]
+            # ── Fallback: best partial-word overlap ───────────────────────
+            # Score = number of query words found in app name (desc), then
+            # name length (asc).  Minimum: the first query word must hit.
+            best_score, best_id = 0, None
+            anchor = words[0] if words else ""
+            for item in items:
+                name  = (item.get("Name") or "").lower()
+                appid = item.get("AppID") or ""
+                if not appid or not anchor:
+                    continue
+                if anchor not in name:
+                    continue
+                score = sum(1 for w in words if w in name)
+                if score > best_score:
+                    best_score = score
+                    best_id    = appid
+            return best_id   # None if nothing matched anchor
+        except Exception as exc:
+            log.debug("_find_uwp_app error: %s", exc)
+        return None
+
     def open_app(self, app: str) -> str:
-        """Launch an application by name."""
+        """
+        Launch an application or target using TargetResolver execution categorization pipeline.
+        Categories:
+          1. APPLICATION: Validated executable / shortcut on disk.
+          2. URL: Validated web URL.
+          3. FILE: Validated existing filesystem path.
+          4. WINDOWS SETTINGS: ms-settings URI.
+          5. UNKNOWN: Fails cleanly without launching ShellExecute / missing shortcut popups.
+        """
         try:
             key = app.lower().strip()
 
-            # ── Explorer: always use os.startfile, never Popen ────────────
-            if key in ("explorer", "file explorer", "my computer",
-                       "this pc", "windows explorer"):
+            # ── 1. Explorer special handling ──────────────────────────────
+            if key in ("explorer", "file explorer", "my computer", "this pc", "windows explorer"):
                 return self.open_explorer()
 
-            exe = APP_MAP.get(key)
-            if exe:
-                exe_path = Path(exe) if not exe.endswith(".exe") or "\\" in exe else None
-                if exe_path and exe_path.exists():
-                    subprocess.Popen([str(exe_path)])
-                    log.info("open_app: launched %s via APP_MAP", key)
-                    return f"Opened {app}."
-                elif exe.endswith(".exe") and "\\" not in exe:
-                    # system exe like notepad.exe, calc.exe
-                    subprocess.Popen(exe, shell=True)
-                    log.info("open_app: launched system exe %s", exe)
+            # ── 2. Target Resolver Categorization & Resolution ────────────
+            from core.desktop_session.target_resolver import TargetResolver, TargetCategory
+            cat, resolved, details = TargetResolver.resolve_target(app)
+
+            log.info("[DESKTOP EXEC] Action: OPEN_APPLICATION | Target: '%s' | Category: %s | Resolved: '%s' | Details: %s",
+                     app, cat.value, resolved, details)
+
+            if cat == TargetCategory.WINDOWS_SETTINGS:
+                import os
+                os.startfile(resolved or "ms-settings:")
+                return f"Opened Windows Settings ({app})."
+
+            elif cat == TargetCategory.URL:
+                return self.open_website(resolved)
+
+            elif cat == TargetCategory.FILE:
+                import os
+                os.startfile(resolved)
+                return f"Opened file '{app}'."
+
+            elif cat == TargetCategory.APPLICATION and resolved:
+                if resolved.endswith(".lnk"):
+                    import os
+                    os.startfile(resolved)
+                    return f"Opened {app} via shortcut."
+                else:
+                    subprocess.Popen([resolved])
                     return f"Opened {app}."
 
-            # Try os.startfile (respects Windows file associations)
-            try:
-                os.startfile(key)
-                log.info("open_app: startfile '%s'", key)
-                return f"Launched {app}."
-            except Exception:
-                pass
+            elif cat == TargetCategory.UNKNOWN:
+                log.warning("open_app: Target '%s' could not be resolved. Aborting launch to prevent missing shortcut errors.", app)
+                return (
+                    f"Could not find or launch '{app}'.\n"
+                    f"Make sure the application is installed on your system.\n"
+                    f"Tip: Try specifying the exact application name (e.g. 'Chrome', 'Notepad', 'Settings')."
+                )
 
-            # Last resort: shell Popen
-            subprocess.Popen(app, shell=True)
-            log.info("open_app: shell Popen '%s'", app)
-            return f"Launched {app}."
+            return f"Opened {app}."
         except Exception as exc:
             log.error("open_app('%s') error: %s", app, exc, exc_info=True)
             return f"Could not open '{app}': {exc}"
@@ -590,17 +901,24 @@ class DesktopAgent:
                 url = WEBSITES.get(name_only)
                 
             if not url:
-                # If site already has a dot, assume it is a domain
-                if "." in clean_site:
-                    url = clean_site
+                # If site contains a space and is not a scheme-prefixed URL, treat as a search query
+                if " " in clean_site and not clean_site.startswith(("http://", "https://")):
+                    clean_query = query.strip()
+                    full_query = f"{clean_site} {clean_query}" if clean_query else clean_site
+                    url = f"https://www.google.com/search?q={urllib.parse.quote(full_query)}"
+                    query = ""
                 else:
-                    url = f"{clean_site}.com"
-                
-                if not url.startswith("http"):
-                    if not url.startswith("www."):
-                        url = f"https://www.{url}"
+                    # If site already has a dot, assume it is a domain
+                    if "." in clean_site:
+                        url = clean_site
                     else:
-                        url = f"https://{url}"
+                        url = f"{clean_site}.com"
+                    
+                    if not url.startswith("http"):
+                        if not url.startswith("www."):
+                            url = f"https://www.{url}"
+                        else:
+                            url = f"https://{url}"
             
             if query:
                 clean_query = query.lower().strip()

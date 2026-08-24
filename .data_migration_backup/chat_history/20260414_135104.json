@@ -1,0 +1,82 @@
+[
+  {
+    "role": "user",
+    "content": "is there any videos in my drive",
+    "time": "2026-04-14T13:51:18.854957"
+  },
+  {
+    "role": "user",
+    "content": "helo",
+    "time": "2026-04-14T13:52:38.869821"
+  },
+  {
+    "role": "helios",
+    "content": "Okay! Let's check your Google Drive for videos. Do you want me to list them or open the Drive directly?\n(via gemma3)",
+    "time": "2026-04-14T13:52:48.279816"
+  },
+  {
+    "role": "user",
+    "content": "is there any videos in my c:drive",
+    "time": "2026-04-14T13:53:15.729566"
+  },
+  {
+    "role": "user",
+    "content": "turn on bluetooth",
+    "time": "2026-04-14T13:55:13.302462"
+  },
+  {
+    "role": "helios",
+    "content": "Bluetooth turned ON successfully.",
+    "time": "2026-04-14T13:55:21.652892"
+  },
+  {
+    "role": "user",
+    "content": "turn off",
+    "time": "2026-04-14T13:55:25.656557"
+  },
+  {
+    "role": "helios",
+    "content": "Bluetooth turned OFF successfully.",
+    "time": "2026-04-14T13:55:30.793617"
+  },
+  {
+    "role": "user",
+    "content": "turn off wifi",
+    "time": "2026-04-14T13:55:42.928922"
+  },
+  {
+    "role": "helios",
+    "content": "Wi-Fi (Wi-Fi) turned OFF.",
+    "time": "2026-04-14T13:55:54.419627"
+  },
+  {
+    "role": "user",
+    "content": "set screen brightness to 40%",
+    "time": "2026-04-14T13:56:07.195544"
+  },
+  {
+    "role": "helios",
+    "content": "Brightness set to 40%.",
+    "time": "2026-04-14T13:56:13.425454"
+  },
+  {
+    "role": "user",
+    "content": "set to 80%",
+    "time": "2026-04-14T13:56:33.813453"
+  },
+  {
+    "role": "helios",
+    "content": "Brightness set to 80%.",
+    "time": "2026-04-14T13:56:40.109930"
+  },
+  {
+    "role": "user",
+    "content": "turn on  night light",
+    "time": "2026-04-14T13:56:56.186394"
+  },
+  {
+    "role": "helios",
+    "content": "Wi-Fi (Wi-Fi) turned ON. Status: Up",
+    "time": "2026-04-14T13:57:05.716836"
+  }
+]

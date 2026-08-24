@@ -1,0 +1,32 @@
+[
+  {
+    "role": "user",
+    "content": "hi",
+    "time": "2026-04-14T22:59:45.983186"
+  },
+  {
+    "role": "helios",
+    "content": "Hello! How can I help you today?\n(via gemma3)",
+    "time": "2026-04-14T22:59:57.629903"
+  },
+  {
+    "role": "user",
+    "content": "generate imag",
+    "time": "2026-04-14T23:00:06.570359"
+  },
+  {
+    "role": "helios",
+    "content": "Please specify what image you would like me to generate.\n(via gemma3)",
+    "time": "2026-04-14T23:00:14.759668"
+  },
+  {
+    "role": "user",
+    "content": "today whether in hyderabad",
+    "time": "2026-04-14T23:00:20.148483"
+  },
+  {
+    "role": "helios",
+    "content": "No results found for 'today weather in hyderabad'.",
+    "time": "2026-04-14T23:00:25.964764"
+  }
+]

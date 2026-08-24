@@ -7,6 +7,7 @@ Uses google-genai (new SDK) instead of deprecated google-generativeai
 
 import os
 import time
+import logging
 import requests
 from enum import Enum
 from dataclasses import dataclass
@@ -15,6 +16,8 @@ from dotenv import load_dotenv
 
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
+
+log = logging.getLogger("helios.llm")
 
 
 class LLMProvider(Enum):
@@ -39,26 +42,40 @@ ONLINE_TRIGGERS = [
 ]
 
 
+from core.system import environment_manager
+
+
 class HybridLLM:
     def __init__(self):
-        self.ollama_url   = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        self.ollama_model = os.getenv("OLLAMA_MODEL", "mistral")
-        self.mode         = os.getenv("LLM_MODE", "offline").lower()
+        self.ollama_url   = environment_manager.get("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.ollama_model = environment_manager.get("OLLAMA_MODEL", "gemma3")
+        self.mode         = environment_manager.get("LLM_MODE", "offline").lower()
 
         # OpenAI
-        self.openai_key   = os.getenv("OPENAI_API_KEY", "")
-        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.openai_key   = environment_manager.get("OPENAI_API_KEY", "")
+        self.openai_model = environment_manager.get("OPENAI_MODEL", "gpt-4o-mini")
 
         # Google Gemini
-        self.gemini_key   = os.getenv("GEMINI_API_KEY", "")
-        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        self.gemini_key   = environment_manager.get("GEMINI_API_KEY", "")
+        self.gemini_model = environment_manager.get("GEMINI_MODEL", "gemini-3.6-flash")
 
         # Which cloud to use: "gemini" or "gpt"
-        self.cloud_provider = os.getenv("CLOUD_PROVIDER", "gemini").lower()
+        self.cloud_provider = environment_manager.get("CLOUD_PROVIDER", "gemini").lower()
 
     # ── Runtime control ───────────────────────────────────────────────────
     def set_model(self, model: str):
-        self.ollama_model = model
+        m = model.lower()
+        if m.startswith("gemini"):
+            self.gemini_model = model
+            self.cloud_provider = "gemini"
+            self.active_cloud_model = model
+        elif m.startswith("gpt"):
+            self.openai_model = model
+            self.cloud_provider = "gpt"
+            self.active_cloud_model = model
+        else:
+            self.ollama_model = model
+            self.active_cloud_model = None
 
     def set_mode(self, mode: str):
         self.mode = mode.lower()
@@ -76,7 +93,7 @@ class HybridLLM:
             pass
         cloud = []
         if self._has_gemini_key():
-            cloud += ["gemini-2.0-flash", "gemini-1.5-pro"]
+            cloud += ["gemini-3.6-flash", "gemini-3.5-flash"]
         if self._has_openai_key():
             cloud += ["gpt-4o-mini", "gpt-4o"]
         return local + cloud
@@ -110,6 +127,8 @@ class HybridLLM:
         return any(t in prompt.lower() for t in ONLINE_TRIGGERS)
 
     def _use_cloud(self, prompt: str) -> bool:
+        if getattr(self, "active_cloud_model", None):
+            return self._has_any_cloud_key()
         if self.mode == "offline":
             return False
         if self.mode == "online":
@@ -122,29 +141,63 @@ class HybridLLM:
     def _call_local(self, prompt: str, system: str = "") -> LLMResponse:
         full = f"{system}\n\n{prompt}" if system else prompt
         t0 = time.time()
-        try:
-            r = requests.post(
-                f"{self.ollama_url}/api/generate",
-                json={"model": self.ollama_model, "prompt": full, "stream": False},
-                timeout=180,
-            )
-            r.raise_for_status()
-        except requests.exceptions.ConnectionError:
-            raise RuntimeError(
-                "Ollama is not running.\n"
-                "Fix: Open a new terminal and run:  ollama serve"
-            )
-        except requests.exceptions.Timeout:
-            raise RuntimeError("Ollama timed out. Model may be loading — try again.")
-
-        data = r.json()
-        return LLMResponse(
-            content=data.get("response", "").strip(),
-            provider=LLMProvider.LOCAL,
-            model=self.ollama_model,
-            tokens_used=data.get("eval_count", 0),
-            latency_ms=(time.time() - t0) * 1000,
-        )
+        
+        payload = {"model": self.ollama_model, "prompt": full, "stream": False}
+        max_attempts = 2
+        
+        for attempt in range(1, max_attempts + 1):
+            try:
+                r = requests.post(
+                    f"{self.ollama_url}/api/generate",
+                    json=payload,
+                    timeout=180,
+                )
+                r.raise_for_status()
+                data = r.json()
+                return LLMResponse(
+                    content=data.get("response", "").strip(),
+                    provider=LLMProvider.LOCAL,
+                    model=self.ollama_model,
+                    tokens_used=data.get("eval_count", 0),
+                    latency_ms=(time.time() - t0) * 1000,
+                )
+            except (requests.exceptions.ConnectionError, ConnectionResetError) as exc:
+                log.warning("[Attempt %d/%d] Ollama connection error: %s", attempt, max_attempts, exc)
+                if attempt < max_attempts:
+                    time.sleep(1.0)
+                    continue
+                raise RuntimeError(
+                    f"Ollama is not running or connection refused.\n"
+                    f"Details: {exc}\n"
+                    f"Fix: Open a new terminal and run:  ollama serve"
+                )
+            except (requests.exceptions.Timeout, requests.exceptions.ReadTimeout) as exc:
+                log.warning("[Attempt %d/%d] Ollama timeout error: %s", attempt, max_attempts, exc)
+                if attempt < max_attempts:
+                    time.sleep(1.0)
+                    continue
+                raise RuntimeError(
+                    f"Ollama local model request timed out (attempt {attempt}).\n"
+                    f"Details: {exc}"
+                )
+            except requests.exceptions.HTTPError as exc:
+                status_code = exc.response.status_code if exc.response is not None else 500
+                response_text = exc.response.text if exc.response is not None else str(exc)
+                log.warning("[Attempt %d/%d] Ollama HTTP error %d: %s", attempt, max_attempts, status_code, response_text)
+                
+                # Retry only on 5xx errors (500, 502, 503, 504)
+                if status_code in (500, 502, 503, 504):
+                    if attempt < max_attempts:
+                        time.sleep(1.0)
+                        continue
+                
+                raise RuntimeError(
+                    f"Ollama request failed (HTTP {status_code}).\n"
+                    f"Response: {response_text.strip()}"
+                )
+            except Exception as exc:
+                log.error("[Attempt %d/%d] Unexpected Ollama error: %s", attempt, max_attempts, exc, exc_info=True)
+                raise RuntimeError(f"Ollama unexpected error: {exc}")
 
     # ── Gemini inference (new google-genai SDK + REST fallback) ──────────
     def _call_gemini(self, prompt: str, system: str = "") -> LLMResponse:
@@ -175,29 +228,7 @@ class HybridLLM:
                 latency_ms=(time.time() - t0) * 1000,
             )
         except ImportError:
-            pass  # SDK not installed, try REST
-
-        # Fallback: try old google-generativeai SDK (suppress FutureWarning)
-        try:
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", FutureWarning)
-                import google.generativeai as genai_old
-            genai_old.configure(api_key=self.gemini_key)
-            model = genai_old.GenerativeModel(
-                model_name=self.gemini_model,
-                system_instruction=system if system else None,
-            )
-            t0 = time.time()
-            resp = model.generate_content(prompt)
-            return LLMResponse(
-                content=resp.text.strip(),
-                provider=LLMProvider.GEMINI,
-                model=self.gemini_model,
-                latency_ms=(time.time() - t0) * 1000,
-            )
-        except ImportError:
-            pass  # Neither SDK available, use REST
+            pass  # google-genai SDK not installed, fallback to REST
 
         return self._call_gemini_rest(prompt, system)
 
@@ -298,6 +329,16 @@ class HybridLLM:
             except Exception:
                 return self._call_local(prompt, system)
         return self._call_local(prompt, system)
+
+    def generate(self, prompt: str, system: str = "") -> str:
+        """Alias returning raw content string for agent controllers."""
+        res = self.chat(prompt, system=system)
+        return res.content
+
+    def query(self, prompt: str, system: str = "") -> str:
+        """Alias returning raw content string for agent controllers."""
+        res = self.chat(prompt, system=system)
+        return res.content
 
     def status(self) -> dict:
         return {

@@ -1,0 +1,82 @@
+[
+  {
+    "role": "user",
+    "content": "hi",
+    "time": "2026-04-14T12:36:12.772773"
+  },
+  {
+    "role": "helios",
+    "content": "Hello there! How can I help you today? 😊\n(via gemma3)",
+    "time": "2026-04-14T12:36:32.847062"
+  },
+  {
+    "role": "user",
+    "content": "what you can do for me",
+    "time": "2026-04-14T12:36:46.432597"
+  },
+  {
+    "role": "helios",
+    "content": "System Info:\n  CPU:      AMD Ryzen 7 7840HS w/ Radeon 780M Graphics\n  CPU Load: 4.5%\n  RAM:      10842MB / 15654MB (69.3%)\n  C: Drive: 262GB / 269GB (97.2%)\n\nWindows:\n  ProductName    : Windows 10 Home Single Language\nCurrentBuild   : 26200\nDisplayVersion : 25H2\nReleaseId      : 2009\n\nHardware:\n  Serial No: CND3471NHJ\n\nHELIOS:\n  Mode:     online\n  Ollama:   online\n  Model:    gemma3\n  Time:     2026-04-14 12:36:59",
+    "time": "2026-04-14T12:36:59.567587"
+  },
+  {
+    "role": "user",
+    "content": "open youtube and search for lofi",
+    "time": "2026-04-14T12:37:29.453175"
+  },
+  {
+    "role": "helios",
+    "content": "Searching YouTube for: lofi",
+    "time": "2026-04-14T12:37:33.626393"
+  },
+  {
+    "role": "user",
+    "content": "close youtube",
+    "time": "2026-04-14T12:37:50.938356"
+  },
+  {
+    "role": "helios",
+    "content": "No running process found for 'youtube'.\nType 'what's running' to see active processes.",
+    "time": "2026-04-14T12:37:55.040814"
+  },
+  {
+    "role": "user",
+    "content": "open explorer",
+    "time": "2026-04-14T12:38:38.661320"
+  },
+  {
+    "role": "helios",
+    "content": "Opening Windows Explorer now.\n(via gemma3)",
+    "time": "2026-04-14T12:38:45.473736"
+  },
+  {
+    "role": "user",
+    "content": "open file explorer and seach for flutter folder",
+    "time": "2026-04-14T12:39:18.933616"
+  },
+  {
+    "role": "helios",
+    "content": "Found and opened folder: C:\\flutter\n\nOther matches (9):\n  • C:\\flutter\\.github\\actions\\composite-flutter-setup\n  • C:\\flutter\\bin\\cache\\flutter_web_sdk\n  • C:\\flutter\\bin\\cache\\artifacts\\engine\\common\\flutter_patched_sdk\n  • C:\\flutter\\bin\\cache\\artifacts\\engine\\common\\flutter_patched_sdk_product",
+    "time": "2026-04-14T12:39:23.370898"
+  },
+  {
+    "role": "user",
+    "content": "hwllo",
+    "time": "2026-04-14T12:40:04.783538"
+  },
+  {
+    "role": "helios",
+    "content": "Hello there! How can I help you today? 😊\n(via gemma3)",
+    "time": "2026-04-14T12:40:11.125442"
+  },
+  {
+    "role": "user",
+    "content": "which model you are",
+    "time": "2026-04-14T12:40:24.213965"
+  },
+  {
+    "role": "helios",
+    "content": "System Info:\n  CPU:      AMD Ryzen 7 7840HS w/ Radeon 780M Graphics\n  CPU Load: 5.0%\n  RAM:      11388MB / 15654MB (72.7%)\n  C: Drive: 262GB / 269GB (97.2%)\n\nWindows:\n  ProductName    : Windows 10 Home Single Language\nCurrentBuild   : 26200\nDisplayVersion : 25H2\nReleaseId      : 2009\n\nHardware:\n  Serial No: CND3471NHJ\n\nHELIOS:\n  Mode:     online\n  Ollama:   online\n  Model:    gemma3\n  Time:     2026-04-14 12:40:35",
+    "time": "2026-04-14T12:40:35.625552"
+  }
+]

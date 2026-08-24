@@ -4,6 +4,8 @@ import logging
 import subprocess
 from pathlib import Path
 
+from core.system import paths_manager
+
 log = logging.getLogger("helios.file_creator")
 
 LOCATIONS = {
@@ -11,6 +13,7 @@ LOCATIONS = {
     "documents": Path.home() / "Documents",
     "downloads": Path.home() / "Downloads",
     "home":      Path.home(),
+    "files":     paths_manager.files_dir,
 }
 
 def validate_and_sanitize_filename(name: str) -> tuple[str, str | None]:

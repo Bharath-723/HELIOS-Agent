@@ -11,16 +11,18 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from core.system import paths_manager, environment_manager
+
 log = logging.getLogger("helios.task_scheduler")
 
-# Resolve absolute path relative to project root
-TASKS_FILE = Path(__file__).parent.parent / "data" / "scheduled_tasks.json"
+# Writable scheduled tasks JSON file from PathsManager
+TASKS_FILE = paths_manager.get_scheduled_tasks_path()
 try:
     TASKS_FILE.parent.mkdir(parents=True, exist_ok=True)
 except Exception as exc:
     log.error("Failed to create task scheduler directory %s: %s", TASKS_FILE.parent, exc, exc_info=True)
 
-TZ = os.getenv("TIMEZONE", "Asia/Kolkata")
+TZ = environment_manager.get("TIMEZONE", "Asia/Kolkata")
 
 
 def _load():
@@ -138,6 +140,7 @@ class TaskScheduler:
             return
         now = datetime.now()
         count = 0
+        save_needed = False
         for tid, t in self.tasks.items():
             if t.get("status") != "active":
                 continue
@@ -149,8 +152,14 @@ class TaskScheduler:
                         self._execute, DateTrigger(run_date=run_at),
                         args=[tid], id=tid, replace_existing=True)
                     count += 1
+                else:
+                    t["status"] = "missed"
+                    log.info("Task %s ('%s') was scheduled in the past (%s) and marked as missed on startup.", tid, t["description"], t["run_at"])
+                    save_needed = True
             except Exception as exc:
                 log.warning("Failed to reschedule active task %s: %s", tid, exc)
+        if save_needed:
+            _save(self.tasks)
         log.info("Rescheduled %d active tasks on startup.", count)
 
     def _execute(self, task_id: str):

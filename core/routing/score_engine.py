@@ -61,10 +61,11 @@ class ScoreEngine:
         if abs(total - 1.0) > 1e-5:
             raise ValueError(f"Weight validation failed: weights sum to {total}, expected 1.0 (tolerance 1e-5)")
 
-    def get_effective_capability(self, model_name: str, context: RoutingContext) -> Dict[str, float]:
+    def get_effective_capability(self, model_name: str, context: RoutingContext, verbose: bool = True) -> Dict[str, float]:
         static_cap = self.capabilities.get(model_name, {}).copy()
         if not static_cap:
-            log.warning("Model profile '%s' not found. Using zero capability stubs.", model_name)
+            if verbose:
+                log.warning("Model profile '%s' not found. Using zero capability stubs.", model_name)
             return {
                 "privacy": 0.0, "freshness": 0.0, "complexity": 0.0,
                 "latency": 0.0, "cost": 0.0, "type": "local"
@@ -83,22 +84,26 @@ class ScoreEngine:
         
         if model_type == "local":
             if not context.local_model_available:
-                log.info("Adjustment: Local model unavailable. Effective capability of '%s' set to zero.", model_name)
+                if verbose:
+                    log.info("Adjustment: Local model unavailable. Effective capability of '%s' set to zero.", model_name)
                 for key in ["privacy", "freshness", "complexity", "latency", "cost"]:
                     eff[key] = 0.0
                 return eff
                 
             if 0 < context.ram_available_mb < 4000.0:
-                log.info("Adjustment: Low RAM (%f MB). Reducing complexity capability of '%s' by 30%%.", context.ram_available_mb, model_name)
+                if verbose:
+                    log.info("Adjustment: Low RAM (%f MB). Reducing complexity capability of '%s' by 30%%.", context.ram_available_mb, model_name)
                 eff["complexity"] *= 0.70
                 
             if not context.gpu_available:
-                log.info("Adjustment: GPU unavailable. Reducing latency capability of '%s' by 40%%.", model_name)
+                if verbose:
+                    log.info("Adjustment: GPU unavailable. Reducing latency capability of '%s' by 40%%.", model_name)
                 eff["latency"] *= 0.60
                 
         elif model_type == "cloud":
             if not context.cloud_available:
-                log.info("Adjustment: Cloud provider unavailable. Effective capability of '%s' set to zero.", model_name)
+                if verbose:
+                    log.info("Adjustment: Cloud provider unavailable. Effective capability of '%s' set to zero.", model_name)
                 for key in ["privacy", "freshness", "complexity", "latency", "cost"]:
                     eff[key] = 0.0
                 return eff
@@ -113,7 +118,7 @@ class ScoreEngine:
         wl = w.get("latency", 0.15)
         wc = w.get("cost", 0.10)
 
-        cap = self.get_effective_capability(model_name, context)
+        cap = self.get_effective_capability(model_name, context, verbose=True)
         c_p = cap["privacy"]
         c_f = cap["freshness"]
         c_cx = cap["complexity"]

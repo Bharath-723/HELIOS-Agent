@@ -59,7 +59,7 @@ class RoutingEngine:
             model_utilities[model] = eval_res["total_utility"]
             model_breakdowns[model] = eval_res["breakdown"]
             
-            eff = self.scores.get_effective_capability(model, context)
+            eff = self.scores.get_effective_capability(model, context, verbose=False)
             mismatches[model] = {
                 "privacy": abs(r_p - eff["privacy"]),
                 "freshness": abs(r_f - eff["freshness"]),
@@ -122,7 +122,7 @@ class RoutingEngine:
         total_time_ms = (time.perf_counter() - total_start) * 1000.0
         
         local_model_name = context.active_local_model or "gemma3"
-        cloud_model_name = context.active_cloud_model or "gemini-2.0-flash"
+        cloud_model_name = context.active_cloud_model or "gemini-3.6-flash"
         
         trace = DecisionTrace(
             extracted_features={

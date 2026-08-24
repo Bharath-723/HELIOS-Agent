@@ -12,7 +12,10 @@
     "keywords": [
       "news", "today", "current", "latest", "now", 
       "weather", "stock", "price", "recent", "time", 
-      "date", "current event", "update"
+      "date", "current event", "update",
+      "search google", "search youtube", "search online",
+      "search the web", "web search", "google search",
+      "youtube search", "open website", "open url"
     ],
     "freshness_score": 0.90,
     "requires_internet": true

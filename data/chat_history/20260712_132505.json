@@ -1,0 +1,122 @@
+[
+  {
+    "role": "user",
+    "content": "open amd sofware",
+    "time": "2026-07-12T13:25:25.041425"
+  },
+  {
+    "role": "helios",
+    "content": "Opened: https://www.amd.com/search?q=software",
+    "time": "2026-07-12T13:25:46.342545"
+  },
+  {
+    "role": "user",
+    "content": "close it",
+    "time": "2026-07-12T13:26:06.039308"
+  },
+  {
+    "role": "helios",
+    "content": "Stopped playback.",
+    "time": "2026-07-12T13:26:17.722350"
+  },
+  {
+    "role": "user",
+    "content": "open unstop smarthire app",
+    "time": "2026-07-12T13:26:41.003414"
+  },
+  {
+    "role": "helios",
+    "content": "Opened unstop smarthire app.",
+    "time": "2026-07-12T13:26:55.385267"
+  },
+  {
+    "role": "user",
+    "content": "open amd software app",
+    "time": "2026-07-12T13:27:43.691367"
+  },
+  {
+    "role": "helios",
+    "content": "Opened amd software app.",
+    "time": "2026-07-12T13:27:57.781049"
+  },
+  {
+    "role": "user",
+    "content": "can you list out how many apps presemt in my desktop",
+    "time": "2026-07-12T13:28:17.905244"
+  },
+  {
+    "role": "helios",
+    "content": "Files in C:\\Users\\bhara\\OneDrive\\Desktop (22 total):\n\n  • Antigravity IDE.lnk  [726 B]\n  • Antigravity.lnk  [1 KB]\n  • app nameMail.txt  [43 B]\n  • Book Marathan 2025 - Beeramguda.pdf  [49 KB]\n  • Book Marathan 2025 - Gajwal.pdf  [47 KB]\n  • CodeBlocks.lnk  [962 B]\n  • Cursor.lnk  [1 KB]\n  • desktop.ini  [474 B]\n  • DW Free Video Downloader.lnk  [1 KB]\n  • generative_ai_workshop.txt  [232 B]\n  • GitHub Desktop.lnk  [2 KB]\n  • HoI letter.docx  [12 KB]\n  • IV SEM RTRP Abstract.docx  [1 MB]\n  • MinGW Installer.lnk  [892 B]\n  • Notes.txt  [1 KB]\n  • Postman.lnk  [2 KB]\n  • replay_pid9632.log  [5 MB]\n  • RTP_abstract.pdf  [439 KB]\n  • Simplilearn(google_cloud).pdf  [596 KB]\n  • Visual Studio Code.lnk  [1 KB]\n  • workflow.txt  [463 B]\n  • ~$ SEM RTRP Abstract.docx  [162 B]",
+    "time": "2026-07-12T13:28:29.801044"
+  },
+  {
+    "role": "user",
+    "content": "from entire file explorer how many apllications installed as of now",
+    "time": "2026-07-12T13:29:16.766739"
+  },
+  {
+    "role": "helios",
+    "content": "Files in C:\\Users\\bhara\\OneDrive (6 total):\n\n  • .849C9593-D756-4E56-8D6E-42412F2A707B  [63 B]\n  • desktop.ini  [96 B]\n  • IMG20250213194934.jpg  [3 MB]\n  • IMG20250213194950.jpg  [3 MB]\n  • IMG_20250405_115525_154.jpg  [113 KB]\n  • Personal Vault.lnk  [1 KB]",
+    "time": "2026-07-12T13:29:34.174007"
+  },
+  {
+    "role": "user",
+    "content": "list the files, that are downloaded on 10-06-2026",
+    "time": "2026-07-12T13:30:48.444100"
+  },
+  {
+    "role": "helios",
+    "content": "Files in C:\\Users\\bhara\\Downloads (314 total):\n\n  • 004.pdf  [218 KB]\n  • 1.jpeg  [46 KB]\n  • 10-2-2026 SRLAP Delivery Sheet.pdf  [118 KB]\n  • 13-2-2026 SRLAP Delivery Sheet.pdf  [125 KB]\n  • 24265A6604(LE-4).jpg  [20 KB]\n  • 24265A6604.pdf  [518 KB]\n  • 27032026.pdf  [236 KB]\n  • 28032026.pdf  [211 KB]\n  • 4th unit krr (1).docx  [89 KB]\n  • 4th unit krr (1).pdf  [51 KB]\n  • 4th unit krr.docx  [89 KB]\n  • 5-3-2026 SRLAP Delivery Sheet.pdf  [109 KB]\n  • 6-Mar-2026 SRLAP Delivery Sheet.pdf  [102 KB]\n  • 6th sem - mid-1 (1).pdf  [3 MB]\n  • 6th sem - mid-1 (2).pdf  [3 MB]\n  • 6th sem - mid-1 (3).pdf  [3 MB]\n  • 6th sem - mid-1.pdf  [3 MB]\n  • 8-3-2026 SRLAP Delivery Sheet.pdf  [55 KB]\n  • A4-Psychometric-Book-Recovered_copy.pdf  [2 MB]\n  • AERO.docx  [61 KB]\n  • AERO.pdf  [148 KB]\n  • agent.py  [40 KB]\n  • Agentic Web Browser.docx  [61 KB]\n  • Agentic Web Browser.pdf  [148 KB]\n  • ai-skills-fest-2026 (1).png  [337 KB]\n  • ai-skills-fest-2026.png  [54 KB]\n  • AI_Knowledge_Representation_Objective_Questions.docx  [38 KB]\n  • AINCAT_certfi.png  [259 KB]\n  • AIPA.docx  [61 KB]\n  • AIPA.pdf  [148 KB]\n  • AkshayaPatra_Project_SRS (1).pdf  [76 KB]\n  • AlloyDB Connection Details.txt  [309 B]\n  • Amazon.pdf  [120 KB]\n  • Amazon_ML_School_Resume.pdf  [111 KB]\n  • Ammulu.jpg  [152 KB]\n  • android-studio-panda4-patch1-windows.exe  [1363 MB]\n  • Antigravity IDE.exe  [218 MB]\n  • Antigravity.exe  [231 MB]\n  • app.py  [2 KB]\n  • application_form(tet).pdf  [415 KB]\n  … and 274 more",
+    "time": "2026-07-12T13:31:00.844008"
+  },
+  {
+    "role": "user",
+    "content": "im asking about the files on specific dt, not on entire c drrive or somehting else",
+    "time": "2026-07-12T13:31:57.289485"
+  },
+  {
+    "role": "helios",
+    "content": "HELIOS: Please provide the exact date you’d like me to search for files on. For example, you could say “files from 10-06-2026”.\n(via gemma3)",
+    "time": "2026-07-12T13:32:18.034119"
+  },
+  {
+    "role": "user",
+    "content": "10-06-2026",
+    "time": "2026-07-12T13:32:30.830496"
+  },
+  {
+    "role": "helios",
+    "content": "Files in C:\\Users\\bhara\\Downloads (314 total):\n\n  • 004.pdf  [218 KB]\n  • 1.jpeg  [46 KB]\n  • 10-2-2026 SRLAP Delivery Sheet.pdf  [118 KB]\n  • 13-2-2026 SRLAP Delivery Sheet.pdf  [125 KB]\n  • 24265A6604(LE-4).jpg  [20 KB]\n  • 24265A6604.pdf  [518 KB]\n  • 27032026.pdf  [236 KB]\n  • 28032026.pdf  [211 KB]\n  • 4th unit krr (1).docx  [89 KB]\n  • 4th unit krr (1).pdf  [51 KB]\n  • 4th unit krr.docx  [89 KB]\n  • 5-3-2026 SRLAP Delivery Sheet.pdf  [109 KB]\n  • 6-Mar-2026 SRLAP Delivery Sheet.pdf  [102 KB]\n  • 6th sem - mid-1 (1).pdf  [3 MB]\n  • 6th sem - mid-1 (2).pdf  [3 MB]\n  • 6th sem - mid-1 (3).pdf  [3 MB]\n  • 6th sem - mid-1.pdf  [3 MB]\n  • 8-3-2026 SRLAP Delivery Sheet.pdf  [55 KB]\n  • A4-Psychometric-Book-Recovered_copy.pdf  [2 MB]\n  • AERO.docx  [61 KB]\n  • AERO.pdf  [148 KB]\n  • agent.py  [40 KB]\n  • Agentic Web Browser.docx  [61 KB]\n  • Agentic Web Browser.pdf  [148 KB]\n  • ai-skills-fest-2026 (1).png  [337 KB]\n  • ai-skills-fest-2026.png  [54 KB]\n  • AI_Knowledge_Representation_Objective_Questions.docx  [38 KB]\n  • AINCAT_certfi.png  [259 KB]\n  • AIPA.docx  [61 KB]\n  • AIPA.pdf  [148 KB]\n  • AkshayaPatra_Project_SRS (1).pdf  [76 KB]\n  • AlloyDB Connection Details.txt  [309 B]\n  • Amazon.pdf  [120 KB]\n  • Amazon_ML_School_Resume.pdf  [111 KB]\n  • Ammulu.jpg  [152 KB]\n  • android-studio-panda4-patch1-windows.exe  [1363 MB]\n  • Antigravity IDE.exe  [218 MB]\n  • Antigravity.exe  [231 MB]\n  • app.py  [2 KB]\n  • application_form(tet).pdf  [415 KB]\n  … and 274 more",
+    "time": "2026-07-12T13:32:44.141134"
+  },
+  {
+    "role": "user",
+    "content": "its is wrong",
+    "time": "2026-07-12T13:32:57.163944"
+  },
+  {
+    "role": "helios",
+    "content": "HELIOS: I apologize that the results weren’t what you expected. It seems my date filtering isn’t working correctly. \n\nCould you please try a different date format, such as “MM-DD-YYYY”? For example, “06-10-2026”.\n(via gemma3)\n(via gemma3)",
+    "time": "2026-07-12T13:33:17.970532"
+  },
+  {
+    "role": "user",
+    "content": "06-10-2026",
+    "time": "2026-07-12T13:34:13.174342"
+  },
+  {
+    "role": "helios",
+    "content": "Files in C:\\Users\\bhara\\Downloads (314 total):\n\n  • 004.pdf  [218 KB]\n  • 1.jpeg  [46 KB]\n  • 10-2-2026 SRLAP Delivery Sheet.pdf  [118 KB]\n  • 13-2-2026 SRLAP Delivery Sheet.pdf  [125 KB]\n  • 24265A6604(LE-4).jpg  [20 KB]\n  • 24265A6604.pdf  [518 KB]\n  • 27032026.pdf  [236 KB]\n  • 28032026.pdf  [211 KB]\n  • 4th unit krr (1).docx  [89 KB]\n  • 4th unit krr (1).pdf  [51 KB]\n  • 4th unit krr.docx  [89 KB]\n  • 5-3-2026 SRLAP Delivery Sheet.pdf  [109 KB]\n  • 6-Mar-2026 SRLAP Delivery Sheet.pdf  [102 KB]\n  • 6th sem - mid-1 (1).pdf  [3 MB]\n  • 6th sem - mid-1 (2).pdf  [3 MB]\n  • 6th sem - mid-1 (3).pdf  [3 MB]\n  • 6th sem - mid-1.pdf  [3 MB]\n  • 8-3-2026 SRLAP Delivery Sheet.pdf  [55 KB]\n  • A4-Psychometric-Book-Recovered_copy.pdf  [2 MB]\n  • AERO.docx  [61 KB]\n  • AERO.pdf  [148 KB]\n  • agent.py  [40 KB]\n  • Agentic Web Browser.docx  [61 KB]\n  • Agentic Web Browser.pdf  [148 KB]\n  • ai-skills-fest-2026 (1).png  [337 KB]\n  • ai-skills-fest-2026.png  [54 KB]\n  • AI_Knowledge_Representation_Objective_Questions.docx  [38 KB]\n  • AINCAT_certfi.png  [259 KB]\n  • AIPA.docx  [61 KB]\n  • AIPA.pdf  [148 KB]\n  • AkshayaPatra_Project_SRS (1).pdf  [76 KB]\n  • AlloyDB Connection Details.txt  [309 B]\n  • Amazon.pdf  [120 KB]\n  • Amazon_ML_School_Resume.pdf  [111 KB]\n  • Ammulu.jpg  [152 KB]\n  • android-studio-panda4-patch1-windows.exe  [1363 MB]\n  • Antigravity IDE.exe  [218 MB]\n  • Antigravity.exe  [231 MB]\n  • app.py  [2 KB]\n  • application_form(tet).pdf  [415 KB]\n  … and 274 more",
+    "time": "2026-07-12T13:34:26.972824"
+  },
+  {
+    "role": "user",
+    "content": "wedding same wrong answers",
+    "time": "2026-07-12T13:34:55.955423"
+  },
+  {
+    "role": "helios",
+    "content": "HELIOS: I’m sorry to hear that the results are still incorrect. It appears I’m struggling to accurately filter files based on the word “wedding.” \n\nWould you like me to broaden my search to include files containing “marriage” or “celebration” instead?\n(via gemma3)\n(via gemma3)",
+    "time": "2026-07-12T13:35:16.895459"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "locality_multiplier": {
+    "local": 1.0,
+    "cloud": 0.5
+  },
+  "risk_thresholds": {
+    "acceptable": 0.3,
+    "marginal": 0.6,
+    "intolerable": 0.8
+  },
+  "concurrency_targets": {
+    "maximum_efficiency_level": 3,
+    "optimal_tasks_per_level": 2
+  },
+  "resource_costs": {
+    "local_cpu_cost": 0.0,
+    "cloud_api_cost_per_token": 0.000015
+  }
+}

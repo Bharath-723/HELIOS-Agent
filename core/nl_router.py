@@ -53,10 +53,19 @@ RULE 15 — If user asks to turn off/on night light, route to night_light_on or 
 
 RULE 16 — If user asks to convert, make, export, or save a file (like docx, text, txt, etc.) to PDF → convert_to_pdf. If path is known, set path; if not, set query to the filename/keywords.
 
+RULE 17 — If the input is ONLY a date (like "06-10-2026", "12/07/2026", "15 Jan 2025", "2026-07-12") with NO other words → general_chat. NEVER route a bare date to list_folder.
+
+RULE 18 — If the input is ONLY a number, an ID, or a code (like "1234", "REF/2026/001", "0012") with NO action verb → general_chat.
+
+RULE 19 — If the user says something like "its wrong", "that's wrong", "same wrong answers", "wrong results", "incorrect", "not right", "that is wrong" → general_chat. These are corrections, NOT file or folder commands.
+
+RULE 20 — Natural language payment execution requests ("pay ₹500", "buy this course for ₹999", "purchase this item", "make the payment", "checkout", "complete my purchase") → razorpay_payment. Informational/history queries ("what is the price", "how much did I pay", "show previous payments") → general_chat.
+
 ════════════════════════════════════════════════
 ACTIONS:
 ════════════════════════════════════════════════
 
+razorpay_payment: {"description": "item description", "amount": 99900, "currency": "INR", "merchant_name": "merchant"}
 play_media: {"query": "name"}
 open_app: {"app": "app name"}
 open_explorer_search: {"query": "name"}
@@ -190,6 +199,14 @@ EXAMPLES:
 "make a pdf of my resume"                -> {"action": "convert_to_pdf", "params": {"query": "resume"}}
 "convert IKS_Consolidated_Study_Guide.docx to pdf" -> {"action": "convert_to_pdf", "params": {"query": "IKS_Consolidated_Study_Guide.docx"}}
 "text file into a pdf fil"               -> {"action": "convert_to_pdf", "params": {"query": "IKS_Consolidated_Study_Guide.docx"}}
+"06-10-2026"                             -> {"action": "general_chat", "params": {"message": "06-10-2026"}}
+"2026/07/12"                             -> {"action": "general_chat", "params": {"message": "2026/07/12"}}
+"15 Jan 2025"                            -> {"action": "general_chat", "params": {"message": "15 Jan 2025"}}
+"1234"                                   -> {"action": "general_chat", "params": {"message": "1234"}}
+"its wrong"                              -> {"action": "general_chat", "params": {"message": "its wrong"}}
+"that's wrong"                           -> {"action": "general_chat", "params": {"message": "that's wrong"}}
+"same wrong answers"                     -> {"action": "general_chat", "params": {"message": "same wrong answers"}}
+"not right"                              -> {"action": "general_chat", "params": {"message": "not right"}}
 """
 
 
@@ -219,17 +236,60 @@ class NLRouter:
 
     def parse(self, user_input: str, context: str = "") -> dict:
         log.info("parse called: user_input='%s'", user_input)
+
+        # ── Fast pre-LLM shortcuts ─────────────────────────────────────────
+        # These patterns are unambiguous and must never go to the LLM router.
+        _stripped = user_input.strip()
+
+        # Pure date: "06-10-2026", "2026/07/12", "15 Jan 2025", etc.
+        _DATE_PATS = [
+            re.compile(r'^\d{1,2}[\-/\.]\d{1,2}[\-/\.]\d{2,4}$'),
+            re.compile(r'^\d{4}[\-/\.]\d{1,2}[\-/\.]\d{1,2}$'),
+            re.compile(r'^\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d{4}$', re.I),
+        ]
+        if any(p.match(_stripped) for p in _DATE_PATS):
+            log.info("parse shortcut: bare date '%s' → general_chat", _stripped)
+            return {"action": "general_chat", "params": {"message": _stripped}}
+
+        # Pure number / code (no verb)
+        if re.match(r'^[\d\s/\-\.#]+$', _stripped) and len(_stripped) >= 1:
+            log.info("parse shortcut: numeric/code input '%s' → general_chat", _stripped)
+            return {"action": "general_chat", "params": {"message": _stripped}}
+
+        # Correction phrases → general_chat
+        _CORRECTION_PATTERNS = [
+            r'\b(its|it\'s|that\'?s|this is|it is)\s+\w*\s*(wrong|incorrect|not right|bad)\b',
+            r'\b(its|it\'s|that\'?s|this is|it is)\s+(wrong|incorrect|not right|bad)\b',
+            r'\b(wrong|incorrect)\s+(result|answer|response|output|answers)s?\b',
+            r'\bsame\s+wrong\b',
+            r'^(wrong|incorrect|not right|that\'?s wrong|its wrong|it\'?s wrong)[\s!.]*$',
+        ]
+        _sl = _stripped.lower()
+        # Also catch: short sentence (<=6 words) where 'wrong'/'incorrect' appears
+        _sl_words = _sl.split()
+        _has_correction_word = any(w in ('wrong', 'incorrect', 'not right') for w in _sl_words)
+        if (_has_correction_word and 1 <= len(_sl_words) <= 6
+                and not any(w in _sl for w in ('file', 'folder', 'download', 'open', 'play', 'search'))):
+            log.info("parse shortcut: correction phrase '%s' → general_chat", _stripped)
+            return {"action": "general_chat", "params": {"message": _stripped}}
+        if any(re.search(p, _sl) for p in _CORRECTION_PATTERNS):
+            log.info("parse shortcut: correction phrase '%s' → general_chat", _stripped)
+            return {"action": "general_chat", "params": {"message": _stripped}}
+
         # Programmatic shortcut for attached files conversion to PDF
+        # NOTE: We intentionally do NOT search context for attachment tags.
+        # The attachment tag is only injected by the UI into the current message.
+        # Searching context caused the shortcut to re-fire on the PREVIOUS session's
+        # attachment (e.g. a complaint about images re-triggered a DOCX→PDF conversion).
         attachment_match = re.search(r'\[(DOCX|TXT|DOC|FILE):\s*(.*?)\]', user_input, re.IGNORECASE)
-        if not attachment_match and context:
-            attachment_match = re.search(r'\[(DOCX|TXT|DOC|FILE):\s*(.*?)\]', context, re.IGNORECASE)
-            
+
         if attachment_match:
             lower_input = user_input.lower()
             if any(w in lower_input for w in ("convert", "pdf", "make a pdf", "export to pdf", "save as pdf")):
                 filename = attachment_match.group(2).strip()
                 log.info("Programmatic shortcut match: converting file '%s' to PDF", filename)
                 return {"action": "convert_to_pdf", "params": {"query": filename}}
+        # ── End fast shortcuts ─────────────────────────────────────────────
 
         if context:
             prompt = (

@@ -1,0 +1,32 @@
+[
+  {
+    "role": "user",
+    "content": "Hey open youtube",
+    "time": "2026-06-16T23:25:15.302472"
+  },
+  {
+    "role": "helios",
+    "content": "Opened: https://www.youtube.com",
+    "time": "2026-06-16T23:25:20.935499"
+  },
+  {
+    "role": "user",
+    "content": "search for lofi in that",
+    "time": "2026-06-16T23:25:40.231336"
+  },
+  {
+    "role": "helios",
+    "content": "Searching YouTube for: lofi",
+    "time": "2026-06-16T23:25:46.230520"
+  },
+  {
+    "role": "user",
+    "content": "play a random video from the serach you made",
+    "time": "2026-06-16T23:26:21.018871"
+  },
+  {
+    "role": "helios",
+    "content": "Searching YouTube for: lofi",
+    "time": "2026-06-16T23:26:27.122142"
+  }
+]

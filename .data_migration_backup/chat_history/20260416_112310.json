@@ -1,0 +1,72 @@
+[
+  {
+    "role": "user",
+    "content": "order a pizza for me",
+    "time": "2026-04-16T11:23:22.114264"
+  },
+  {
+    "role": "helios",
+    "content": "Sure! Where should I order pizza from?\nReply with: Swiggy or Zomato",
+    "time": "2026-04-16T11:23:32.946206"
+  },
+  {
+    "role": "user",
+    "content": "swiggy",
+    "time": "2026-04-16T11:25:14.779963"
+  },
+  {
+    "role": "helios",
+    "content": "Got it — Swiggy.\nWhat's your delivery location? (area name or full address)",
+    "time": "2026-04-16T11:25:14.784739"
+  },
+  {
+    "role": "user",
+    "content": "hyderabad",
+    "time": "2026-04-16T11:25:21.234671"
+  },
+  {
+    "role": "helios",
+    "content": "Delivery to: hyderabad\nWhat's your budget? (e.g. 200, 500, or type 'any' for no limit)",
+    "time": "2026-04-16T11:25:21.251051"
+  },
+  {
+    "role": "user",
+    "content": "200",
+    "time": "2026-04-16T11:25:24.064588"
+  },
+  {
+    "role": "helios",
+    "content": "Opening Swiggy to order: pizza\n  Location: hyderabad\n  Budget:   200\n\nThe Swiggy search page is open in your browser.\nSelect your restaurant, add to cart, and place the order!",
+    "time": "2026-04-16T11:25:24.190331"
+  },
+  {
+    "role": "user",
+    "content": "genrate an email to prncipal about taking permision for 2 days",
+    "time": "2026-04-16T11:27:14.193452"
+  },
+  {
+    "role": "helios",
+    "content": "Gmail compose opened!\n  To:      principal@example.com\n  Subject: Permission for Leave\n  Body:    Dear Principal,\n\nI am writing to request permission to take leave for 2 days, fr...\nReview and click Send in your browser.",
+    "time": "2026-04-16T11:27:22.902796"
+  },
+  {
+    "role": "user",
+    "content": "to:principal@mgit.ac.in",
+    "time": "2026-04-16T11:28:12.103987"
+  },
+  {
+    "role": "helios",
+    "content": "Gmail compose opened!\n  To:      principal@mgit.ac.in\n  Subject: Permission for Leave\n  Body:    Dear Principal,\n\nI am writing to request permission to take leave for 2 days, fr...\nReview and click Send in your browser.",
+    "time": "2026-04-16T11:28:21.223712"
+  },
+  {
+    "role": "user",
+    "content": "move the file named c2.txt from downloads to desktop",
+    "time": "2026-04-16T11:30:00.977192"
+  },
+  {
+    "role": "helios",
+    "content": "Moved: c2.txt\n  From: C:\\Users\\bhara\\Downloads\n  To:   C:\\Users\\bhara\\Desktop",
+    "time": "2026-04-16T11:30:08.161391"
+  }
+]

@@ -10,12 +10,14 @@ Design guarantees:
 """
 
 import os
+import re
 import logging
 import shutil
 import subprocess
 import webbrowser
 import urllib.parse
 import psutil
+import atexit
 from datetime import datetime
 from pathlib import Path
 
@@ -54,6 +56,23 @@ CRITICAL: You CANNOT perform browser automation, click web elements, fill out fo
 """
 
 DANGEROUS_ACTIONS: set = {"shutdown", "restart", "empty_recycle", "kill_app"}
+
+# ── Pre-routing pattern guards ────────────────────────────────────────────────
+import re as _re
+
+# Pure date patterns: 06-10-2026, 2026/07/12, 12.07.2026 etc. → general_chat
+_DATE_PATTERNS = [
+    _re.compile(r'^\d{1,2}[\-/\.]\d{1,2}[\-/\.]\d{2,4}$'),   # DD-MM-YYYY
+    _re.compile(r'^\d{4}[\-/\.]\d{1,2}[\-/\.]\d{1,2}$'),     # YYYY-MM-DD
+    _re.compile(r'^\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d{4}$', _re.I),
+]
+
+# Voice STT garbage detector: multi-word input with avg word length < 3.5
+# or contains obvious STT noise combos.
+_VOICE_NOISE_PHRASES = frozenset([
+    "wedding same wrong answers", "wedding wrong answers",
+    "heading same wrong", "reading same wrong",
+])
 
 _home = Path.home()
 _onedrive = _home / "OneDrive"
@@ -135,7 +154,17 @@ class HELIOSAgent:
         self.notes     = NotesManager(self.llm)
         self.scheduler = TaskScheduler()
         self.search    = WebSearch(self.llm)
+        from core.payments import HeliosPaymentAdapter
+        self.payments  = HeliosPaymentAdapter()
+        from core.commerce import CommerceOrchestrator, CommerceTransactionBridge
+        self.commerce  = CommerceOrchestrator(CommerceTransactionBridge(self.payments))
+        from core.desktop_session import DesktopSessionManager
+        self.session_manager = DesktopSessionManager(
+            desktop=self.desktop, sysctrl=self.sysctrl, commerce=self.commerce, llm=self.llm
+        )
         self.history   = ChatHistory()
+        self._shutdown_done = False
+        atexit.register(self.shutdown)
 
         # ── State machines ────────────────────────────────────────────────
         self._pending_action: str | None = None
@@ -227,6 +256,191 @@ class HELIOSAgent:
         log.info("User: %s", text)
         self.history.add("user", text)
 
+        # ── Pre-routing guards ──────────────────────────────────────────────
+        # Guard 0: Direct Real-Time Date & Time Queries
+        lower_raw = text.lower().strip()
+        if lower_raw in [
+            "today date", "today's date", "what is today date", "what is today's date",
+            "current date", "what is the date today", "what date is it", "date today", "date"
+        ]:
+            now = datetime.now()
+            today_str = now.strftime("%A, %B %d, %Y")
+            result = f"Today is **{today_str}**.\n\nWould you like me to check your schedule or set a reminder for today?"
+            self.history.add("helios", result)
+            return result
+
+        if lower_raw in ["time", "current time", "what time is it", "what is the time", "time now", "tell me the time"]:
+            now = datetime.now()
+            time_str = now.strftime("%I:%M %p")
+            result = f"The current time is **{time_str}**."
+            self.history.add("helios", result)
+            return result
+
+        # Guard 0.5: Deep File Search & Spiderman / Movie queries
+        if any(kw in lower_raw for kw in ("movie", "spiderman", "downloaded", "where is", "where got it save", "saved")):
+            if any(kw in lower_raw for kw in ("search", "find", "where", "downloaded", "movie", "play", "saved")):
+                log.info("Pre-routing guard: Deep File Search query detected '%s'", text)
+                result = self.desktop.deep_file_search(text)
+                self.history.add("helios", result)
+                return result
+
+        # Guard 0.55: Product Link Guard — NEVER open a merchant search URL as Product Link
+        if lower_raw in ("product link", "show product link", "open product link", "get product link", "link"):
+            log.info("Pre-routing guard: Product Link request detected '%s'", text)
+            last_context = getattr(self.commerce, "_last_context", None)
+            cand = None
+            if last_context and last_context.recommendation:
+                cand = last_context.recommendation.selected_candidate
+
+            if cand and cand.direct_product_url and cand.classification == "DIRECT_PRODUCT_PAGE":
+                result = self.desktop.open_website(cand.direct_product_url)
+                self.history.add("helios", result)
+                return result
+            elif cand and cand.source_url:
+                from core.commerce.search.result_classifier import ResultClassifier
+                url_cls = ResultClassifier.classify(cand.source_url)
+                if url_cls in ("MERCHANT_SEARCH_PAGE", "MERCHANT_COLLECTION", "CATEGORY_PAGE"):
+                    result = (
+                        f"⚠️ **Product Link Pending Verification**:\n"
+                        f"The discovered merchant result at {cand.merchant} is a search/collection page ({cand.source_url}) "
+                        f"rather than a direct product page.\n"
+                        f"HELIOS cannot expose search URLs as official product links. Secondary research is required to resolve the direct product page."
+                    )
+                    self.history.add("helios", result)
+                    return result
+
+            result = "⚠️ No verified direct product page link is available for the current item."
+            self.history.add("helios", result)
+            return result
+
+        # Commerce Indicators check
+        _COMMERCE_INDICATORS = ("under ₹", "under rs", "for ₹", "buy the best", "compare these", "don't buy", "dont buy", "make the payment", "checkout", "buy this", "pay ₹")
+        _is_comm = any(re.search(r'\b' + re.escape(v) + r'\b', lower_raw) for v in ("pay", "buy", "purchase", "checkout")) or any(kw in lower_raw for kw in _COMMERCE_INDICATORS)
+        _is_pure_info = lower_raw.startswith("what is the price") or "previous payments" in lower_raw or "payment history" in lower_raw
+
+        # Guard 0.58: Persistent Screen-Aware Desktop Session Guard
+        from core.desktop_session import TaskContinuityEngine, DesktopSessionState
+        _is_desktop_cmd = any(lower_raw.startswith(kw) for kw in ("open settings", "search for ", "open display", "stop session", "end session", "cancel task", "quit session", "end task", "open amazon"))
+        _in_active_session = self.session_manager.get_current_context().session_state in (DesktopSessionState.WAITING_FOR_USER, DesktopSessionState.ACTIVE)
+
+        if TaskContinuityEngine.is_termination_request(text) or (_in_active_session and not _is_comm) or (_is_desktop_cmd and not _is_comm):
+            log.info("Pre-routing guard: Desktop session instruction detected '%s'", text)
+            sess_res = self.session_manager.process_instruction(text)
+
+            if sess_res.get("permission_required"):
+                result = sess_res.get("message")
+                self.history.add("helios", result)
+                return result
+
+            if sess_res.get("permission_denied"):
+                result = (
+                    f"⚠️ **Screen Access Denied**:\n"
+                    f"The selected cloud model needs screen access to continue this task, but screen access was denied by user.\n"
+                    f"No screenshot or OCR context was transmitted to the cloud model."
+                )
+                self.history.add("helios", result)
+                return result
+
+            if sess_res.get("success"):
+                action_info = sess_res.get("action_executed") or {}
+                ver_reason = sess_res.get("verification_reason") or "Verified"
+                state_str = sess_res.get("state")
+                app_str = sess_res.get("active_application") or "Desktop"
+                result = (
+                    f"🖥️ **Desktop Agent Session** [{state_str}]:\n"
+                    f"**Action**: {action_info.get('action_type', 'Action')} ({action_info.get('target', '')})\n"
+                    f"**Active App**: {app_str}  |  **Verification**: {ver_reason}\n"
+                    f"**Status**: Waiting for your next instruction..."
+                )
+                self.history.add("helios", result)
+                return result
+            else:
+                msg = sess_res.get("message") or "Desktop action failed verification."
+                result = f"⚠️ {msg}\n\n**Status**: Waiting for your next instruction..."
+                self.history.add("helios", result)
+                return result
+
+        # Guard 0.6: End-to-End Agentic Commerce & Payment Intents
+        if _is_comm and not _is_pure_info:
+            log.info("Pre-routing guard: Commercial intent detected '%s'", text)
+            comm_res = self.commerce.process_commerce_request(text)
+            if comm_res.get("success"):
+                if comm_res.get("type") in ("COMMERCE_TRANSACTION_READY", "PAYMENT_ONLY"):
+                    import json
+                    result = "COMMERCE_INTENT_JSON:" + json.dumps(comm_res)
+                    self.history.add("helios", result)
+                    return result
+                elif comm_res.get("type") == "INFORMATION_ONLY":
+                    ctx = comm_res.get("context", {})
+                    rec = ctx.get("recommendation") or {}
+                    cand = rec.get("selected_candidate") or {}
+                    
+                    # Live Display Rule: Display (LIVE) ONLY if direct page verified; otherwise (Search-result price)
+                    is_verified = (cand.get("verification_status") == "DIRECT_PAGE_VERIFIED" or cand.get("price_type") == "LIVE_PRODUCT_PAGE")
+                    price_badge = "LIVE Verified" if is_verified else "Search-result price"
+
+                    offers_str = ""
+                    if cand.get("merchant_offers"):
+                        offers_str = "\n**Merchant Offer Comparison**:\n" + "\n".join(
+                            f"  • {off.get('merchant')}: ₹{off.get('price_inr'):,.2f} ({( 'LIVE' if off.get('verification_status') == 'DIRECT_PAGE_VERIFIED' else 'Search-result price' )})"
+                            for off in cand.get("merchant_offers")[:3]
+                        ) + "\n"
+
+                    # Product Link Rule: Never open search URL as Product Link
+                    direct_url = cand.get("direct_product_url")
+                    link_str = f"\n**Product Link**: [View Verified Product Page]({direct_url})" if direct_url else "\n*(Direct product page link pending verification)*"
+
+                    result = (
+                        f"🛍️ **Research & Recommendation for {ctx.get('intent', {}).get('target_item', 'Requested Item')}**:\n\n"
+                        f"**Recommended**: {cand.get('name', 'Product')}\n"
+                        f"**Price**: ₹{cand.get('price_inr', 0.0):,.2f} ({price_badge})  |  **Merchant**: {cand.get('merchant', 'Partner Store')}\n"
+                        f"{link_str}\n"
+                        f"{offers_str}\n"
+                        f"**Reason**: {rec.get('reason', '')}\n\n"
+                        f"*(No transaction prepared per your request)*"
+                    )
+                    self.history.add("helios", result)
+                    return result
+            else:
+                err_msg = comm_res.get("error_message") or "HELIOS couldn't retrieve reliable current prices from available sources."
+                result = f"⚠️ {err_msg}\n\n[ Retry Research ]"
+                self.history.add("helios", result)
+                return result
+
+        # Guard 1: Pure date string → always general_chat (never list_folder)
+        text_stripped = text.strip()
+        if any(p.match(text_stripped) for p in _DATE_PATTERNS):
+            log.info("Pre-routing guard: date pattern detected '%s' → general_chat", text_stripped)
+            resp = self.llm.chat(
+                prompt=f"The user entered a date: {text_stripped}. What would you like to do with this date?",
+                system=self._get_system_prompt())
+            result = resp.content + f"\n(via {resp.model})"
+            self.history.add("helios", result)
+            return result
+
+        # Guard 2: Voice STT garbage filter — detect known noise phrases
+        # or statistically incoherent multi-word inputs (avg word len < 3)
+        text_lower = text_stripped.lower()
+        if text_lower in _VOICE_NOISE_PHRASES:
+            log.warning("Pre-routing guard: voice STT noise detected '%s'", text_stripped)
+            result = ("⚠ I didn't catch that clearly — the voice input may have been garbled.\n"
+                     "Please try again or type your command.")
+            self.history.add("helios", result)
+            return result
+        words = text_stripped.split()
+        if (len(words) >= 3
+                and all(len(w) >= 2 for w in words)   # not single-char fragments
+                and sum(len(w) for w in words) / len(words) < 3.2
+                and not any(c.isdigit() for c in text_stripped)):
+            # Very short average word length → likely STT noise
+            log.warning("Pre-routing guard: possible STT noise (avg word len=%.1f) '%s'",
+                        sum(len(w) for w in words) / len(words), text_stripped)
+            result = ("⚠ That didn't come through clearly.\n"
+                     "Could you rephrase or type what you meant?")
+            self.history.add("helios", result)
+            return result
+        # ── End pre-routing guards ──────────────────────────────────────────
+
         # Priority 1: disambiguation waiting
         if self._disambig_items:
             result = self._handle_disambig(text)
@@ -252,7 +466,7 @@ class HELIOSAgent:
                 action_to_take = "play" if any(w in text.lower() for w in ("play", "stream", "watch", "listen", "run")) else "open"
                 result = self._exec_on_chosen(resolved, action_to_take, "")
                 log.info("Resolved search selection → playing/opening: %s", resolved)
-                self._last_search_results = [] # clear results
+                self._last_search_results = []  # clear results
                 self.history.add("helios", result)
                 return result
 
@@ -261,6 +475,13 @@ class HELIOSAgent:
         action = parsed.get("action", "general_chat")
         params = parsed.get("params", {}) or {}
         log.info("Routed → action=%s params=%s", action, params)
+
+        # Post-routing sanity: date accidentally mapped to list_folder → fix
+        if action == "list_folder" and any(p.match(text_stripped) for p in _DATE_PATTERNS):
+            log.warning("Post-routing guard: date '%s' mis-routed to list_folder → redirecting to general_chat",
+                        text_stripped)
+            action = "general_chat"
+            params = {"message": text_stripped}
 
         if action in DANGEROUS_ACTIONS:
             self._pending_action = action
@@ -271,7 +492,12 @@ class HELIOSAgent:
             return msg
 
         result = self._execute(action, params, text)
-        log.info("Result: %s", result[:120].replace("\n", " "))
+        if result is None:
+            log.warning("Action '%s' returned None -> falling back to general_chat", action)
+            resp = self.llm.chat(prompt=self._chat_prompt(text), system=self._get_system_prompt())
+            result = f"{resp.content}\n(via {resp.model})"
+
+        log.info("Result: %s", str(result)[:120].replace("\n", " "))
         self.history.add("helios", result)
         return result
 
@@ -287,7 +513,27 @@ class HELIOSAgent:
 
     def _chat_prompt(self, message: str) -> str:
         ctx = self._get_context()
-        return f"Conversation:\n{ctx}\n\nUser: {message}" if ctx else message
+        if not ctx:
+            return message
+        # Trim context: remove large file listing dumps to prevent context bleed
+        # into general_chat LLM responses (e.g. "Files in Downloads:" etc.)
+        ctx_lines = ctx.splitlines()
+        clean_lines = []
+        skip = False
+        for line in ctx_lines:
+            stripped = line.strip()
+            # Start skipping when we see a folder listing header
+            if _re.search(r'^HELIOS:.*Files in .+\(\d+ total\)', stripped):
+                skip = True
+                clean_lines.append("HELIOS: [folder listing - hidden from chat context]")
+                continue
+            # Stop skipping at next User/HELIOS turn (not a file bullet)
+            if skip and (stripped.startswith("User:") or stripped.startswith("HELIOS:")):
+                skip = False
+            if not skip:
+                clean_lines.append(line)
+        ctx = "\n".join(clean_lines)
+        return f"Conversation:\n{ctx}\n\nUser: {message}"
 
     # ═════════════════════════════════════════════════════════════════════
     # CONFIRMATION FLOW
@@ -597,7 +843,6 @@ class HELIOSAgent:
             path = p.get("path") or ""
             if not path:
                 query = p.get("query") or raw
-                import re
                 # Only clean stop-words using word boundaries so we do not strip characters from inside filenames
                 clean_query = re.sub(r'\b(convert|to|pdf|file|make|a|into)\b', '', query, flags=re.IGNORECASE)
                 clean_query = re.sub(r'\s+', ' ', clean_query).strip()
@@ -621,19 +866,9 @@ class HELIOSAgent:
         if action == "list_folder":
             return self._list_folder(p.get("location") or p.get("query") or raw)
 
-        if action == "find_file":
-            query   = p.get("query") or raw
-            folders = self.desktop.search_folder(query)
-            files   = self.desktop.search_file(query)
-            results = folders + [f for f in files if f not in folders]
-            if not results:
-                self._last_search_results = []
-                return f"Nothing found matching '{query}'."
-            self._last_search_results = results
-            lines = [f"Found {len(results)} matching files:\n"]
-            for i, r in enumerate(results[:15], 1):
-                lines.append(f"  {i}. {Path(r).name}  [{Path(r).parent}]")
-            return "\n".join(lines)
+        if action in ("find_file", "deep_file_search"):
+            query = p.get("query") or raw
+            return self.desktop.deep_file_search(query)
 
         if action == "open_file":
             path = p.get("path") or ""
@@ -651,11 +886,23 @@ class HELIOSAgent:
                 p.get("keyword") or p.get("word") or "")
 
         if action == "move_file":
-            return self._move_file(
-                p.get("name", ""), p.get("from", ""), p.get("to", ""))
+            src = p.get("name") or p.get("from") or p.get("file") or raw
+            dest = p.get("to") or p.get("destination") or ""
+            return self.desktop.move_file(src, dest)
+
+        if action == "copy_file":
+            src = p.get("name") or p.get("from") or p.get("file") or raw
+            dest = p.get("to") or p.get("destination") or ""
+            return self.desktop.copy_file(src, dest)
+
+        if action == "rename_file":
+            src = p.get("name") or p.get("from") or p.get("file") or raw
+            new_name = p.get("new_name") or p.get("to") or ""
+            return self.desktop.rename_file(src, new_name)
 
         if action == "delete_file":
-            return self._delete_file(p.get("path", ""), p.get("name", ""))
+            target = p.get("path") or p.get("name") or raw
+            return self.desktop.delete_file(target)
 
         # ── EMAIL ─────────────────────────────────────────────────────────────
         if action == "compose_gmail":
@@ -758,16 +1005,59 @@ class HELIOSAgent:
         if action == "web_search":
             return self.search.search(p.get("query", raw))
 
+        # ── RAZORPAY AGENTIC PAYMENTS ─────────────────────────────────────────
+        if action == "razorpay_payment":
+            desc = p.get("description") or p.get("item") or raw
+            amt = p.get("amount")
+            if not amt:
+                m = re.search(r'(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d{1,2})?)', raw, re.IGNORECASE)
+                if m:
+                    amt = int(float(m.group(1)) * 100)
+                else:
+                    amt = 99900
+            elif isinstance(amt, (int, float)) and amt < 10000 and amt > 0:
+                amt = int(amt * 100)
+            
+            merchant = p.get("merchant_name") or p.get("merchant") or "HELIOS Store"
+            curr = p.get("currency", "INR")
+            
+            prep_res = self.payments.execute_tool_call("prepare_payment", {
+                "description": desc,
+                "amount": int(amt),
+                "currency": curr,
+                "merchant_name": merchant,
+                "merchant_reference": f"ref_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            })
+            
+            import json
+            return "PAYMENT_INTENT_JSON:" + json.dumps(prep_res)
+
         # ── GENERAL CHAT (knowledge / conversation fallback) ──────────────────
-        resp    = self.llm.chat(
-            prompt=self._chat_prompt(p.get("message", raw)),
-            system=HELIOS_CHAT)
-        content = resp.content
-        # Store as draft if it looks like an email was composed
-        if any(kw in raw.lower() for kw in
-               ("mail", "email", "letter", "compose", "write to", "draft")):
-            self._last_draft = content
-        return f"{content}\n(via {resp.model})"
+        if action == "general_chat":
+            resp = self.llm.chat(
+                prompt=self._chat_prompt(p.get("message", raw)),
+                system=self._get_system_prompt())
+            content = resp.content
+            if any(kw in raw.lower() for kw in
+                   ("mail", "email", "letter", "compose", "write to", "draft")):
+                self._last_draft = content
+            return f"{content}\n(via {resp.model})"
+
+    def _get_system_prompt(self) -> str:
+        now = datetime.now()
+        date_str = now.strftime("%A, %B %d, %Y")
+        time_str = now.strftime("%I:%M %p")
+        return (
+            f"You are HELIOS, an autonomous desktop AI assistant.\n"
+            f"CRITICAL REAL-TIME SYSTEM CONTEXT:\n"
+            f"TODAY'S EXACT DATE IS: {date_str}.\n"
+            f"CURRENT REAL-TIME SYSTEM TIME IS: {time_str}.\n\n"
+            f"Be concise, helpful, and friendly.\n"
+            f"For knowledge questions (recipes, how-to, history, science) give a clear\n"
+            f"structured answer then offer ONE helpful follow-up action.\n"
+            f"Never say you cannot do something you are actually capable of.\n\n"
+            f"CRITICAL: You CANNOT perform browser automation, click web elements, fill out forms, login to websites, or add items to carts in real-time."
+        )
 
     # ═════════════════════════════════════════════════════════════════════
     # FILE HELPERS
@@ -1022,6 +1312,9 @@ class HELIOSAgent:
 
     # ── Graceful shutdown ─────────────────────────────────────────────────────
     def shutdown(self):
+        if getattr(self, "_shutdown_done", False):
+            return
+        self._shutdown_done = True
         try:
             self.scheduler.shutdown()
             log.info("HELIOS shutdown complete.")

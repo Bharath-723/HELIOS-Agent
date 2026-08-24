@@ -1,0 +1,52 @@
+[
+  {
+    "role": "user",
+    "content": "play a avenger video in youtube",
+    "time": "2026-06-16T23:48:04.503549"
+  },
+  {
+    "role": "helios",
+    "content": "Playing directly on YouTube:\n  • avenger video\n  • URL: https://www.youtube.com/watch?v=e2tZ-u9dWsk",
+    "time": "2026-06-16T23:48:11.582665"
+  },
+  {
+    "role": "user",
+    "content": "pause the video",
+    "time": "2026-06-16T23:48:19.342488"
+  },
+  {
+    "role": "helios",
+    "content": "Paused playback.",
+    "time": "2026-06-16T23:48:25.396915"
+  },
+  {
+    "role": "user",
+    "content": "resume",
+    "time": "2026-06-16T23:48:28.291746"
+  },
+  {
+    "role": "helios",
+    "content": "Paused playback.",
+    "time": "2026-06-16T23:48:33.296145"
+  },
+  {
+    "role": "user",
+    "content": "close youtube",
+    "time": "2026-06-16T23:48:41.959382"
+  },
+  {
+    "role": "helios",
+    "content": "Stopped playback and closed YouTube window(s): (417) AVENGERS… ASSEMBLE! | Endgame Final Battle (4K) - YouTube - Google Chrome",
+    "time": "2026-06-16T23:48:47.313337"
+  },
+  {
+    "role": "user",
+    "content": "open swigggy and searchf ro pizza",
+    "time": "2026-06-16T23:49:06.003565"
+  },
+  {
+    "role": "helios",
+    "content": "Opened: https://www.swiggy.com",
+    "time": "2026-06-16T23:49:11.750300"
+  }
+]

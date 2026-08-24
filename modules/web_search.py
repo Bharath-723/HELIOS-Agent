@@ -13,11 +13,7 @@ class WebSearch:
     def search(self, query: str) -> str:
         log.info("web_search called: query='%s'", query)
         try:
-            try:
-                from ddgs import DDGS
-            except ImportError:
-                from duckduckgo_search import DDGS
-            
+            from ddgs import DDGS
             with DDGS() as d:
                 results = list(d.text(query, max_results=MAX))
         except Exception as e:

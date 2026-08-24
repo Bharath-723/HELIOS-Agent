@@ -1,0 +1,22 @@
+{
+  "loop_settings": {
+    "max_iterations": 5,
+    "convergence_threshold": 0.005
+  },
+  "transformation_rules": {
+    "prune_redundant_check": {
+      "enabled": true,
+      "redundant_keywords": ["verify", "check", "status"]
+    },
+    "parallelize_independent": {
+      "enabled": true
+    },
+    "collapse_tool_switch": {
+      "enabled": true
+    },
+    "model_substitution": {
+      "enabled": true,
+      "preferred_local_model": "gemma3"
+    }
+  }
+}

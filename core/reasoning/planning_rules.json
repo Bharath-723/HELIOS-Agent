@@ -1,0 +1,80 @@
+{
+  "categories": {
+    "chat": {
+      "keywords": ["hi", "hello", "how are you", "tell me a story", "explain", "who is", "what is"],
+      "default_model": "gemma3",
+      "fallback_model": "gemini-2.0-flash",
+      "default_tool": null,
+      "privacy_requirement": "low",
+      "internet_requirement": false,
+      "complexity": 0.3,
+      "latency_est_ms": 3500.0,
+      "cost_est": 0.0,
+      "risk_est": 0.1
+    },
+    "file": {
+      "keywords": ["file", "folder", "desktop", "document", "docx", "pdf", "open explorer", "find file", "list directory", "open file", "convert file", "read pdf", "save file", "create file"],
+      "default_model": "gemma3",
+      "fallback_model": "gemini-2.0-flash",
+      "default_tool": "DesktopAgent",
+      "privacy_requirement": "medium",
+      "internet_requirement": false,
+      "complexity": 0.5,
+      "latency_est_ms": 1500.0,
+      "cost_est": 0.0,
+      "risk_est": 0.3
+    },
+    "notes": {
+      "keywords": ["note", "notes", "create note", "save note", "add note", "append note", "read note", "delete note", "list notes"],
+      "default_model": "gemma3",
+      "fallback_model": "gemini-2.0-flash",
+      "default_tool": "NotesManager",
+      "privacy_requirement": "medium",
+      "internet_requirement": false,
+      "complexity": 0.4,
+      "latency_est_ms": 800.0,
+      "cost_est": 0.0,
+      "risk_est": 0.2
+    },
+    "schedule": {
+      "keywords": ["schedule", "remind", "reminder", "timer", "cron", "set alarm", "task at", "remind me in"],
+      "default_model": "gemma3",
+      "fallback_model": "gemini-2.0-flash",
+      "default_tool": "TaskScheduler",
+      "privacy_requirement": "low",
+      "internet_requirement": false,
+      "complexity": 0.4,
+      "latency_est_ms": 500.0,
+      "cost_est": 0.0,
+      "risk_est": 0.2
+    },
+    "search": {
+      "keywords": ["search google", "search youtube", "search online", "search the web", "web search", "google search", "youtube search", "open website", "open url", "latest news", "current weather", "stock price", "who won the game today"],
+      "default_model": "gemini-2.0-flash",
+      "fallback_model": "gemma3",
+      "default_tool": "WebSearch",
+      "privacy_requirement": "low",
+      "internet_requirement": true,
+      "complexity": 0.6,
+      "latency_est_ms": 2500.0,
+      "cost_est": 0.005,
+      "risk_est": 0.4
+    },
+    "privacy_task": {
+      "keywords": ["password", "secret", "credentials", "token", "key", "salary", "ssn", "medical", "personal", "invoice", "bank", "financial", "identity", "social security"],
+      "default_model": "gemma3",
+      "fallback_model": "mistral",
+      "default_tool": null,
+      "privacy_requirement": "high",
+      "internet_requirement": false,
+      "complexity": 0.5,
+      "latency_est_ms": 4000.0,
+      "cost_est": 0.0,
+      "risk_est": 0.5
+    }
+  },
+  "intent_rules": {
+    "freshness_indicators": ["news", "weather", "today", "current", "latest", "stock", "price", "now"],
+    "privacy_indicators": ["password", "credentials", "secret", "key", "bank", "ssn", "personal", "salary", "invoice", "token"]
+  }
+}

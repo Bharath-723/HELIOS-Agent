@@ -6,10 +6,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from core.system import paths_manager
+
 log = logging.getLogger("helios.notes_manager")
 
-# Resolve absolute path relative to project root
-NOTES_DIR = Path(os.getenv("NOTES_DIR", Path(__file__).parent.parent / "data" / "notes"))
+# Writable notes directory from PathsManager (%APPDATA%/HELIOS/Notes or ./Data/Notes)
+NOTES_DIR = paths_manager.notes_dir
 try:
     NOTES_DIR.mkdir(parents=True, exist_ok=True)
 except Exception as exc:

@@ -1,45 +1,61 @@
 {
-  "prompt": "summarize report architecture draft",
+  "prompt": "set brightness to 90%",
   "extracted_requirements": {
     "privacy": 0.0,
     "freshness": 0.0,
-    "complexity": 0.85
+    "complexity": 0.0
   },
   "candidate_models": [
-    "gemini-2.0-flash",
+    "gemma3",
+    "mistral",
+    "gemini-3.6-flash",
     "gpt-4"
   ],
   "utility_scores": {
-    "gemini-2.0-flash": 0.666875,
-    "gpt-4": 0.6482499999999999
+    "gemma3": 0.5265,
+    "mistral": 0.522,
+    "gemini-3.6-flash": 0.46499999999999997,
+    "gpt-4": 0.44
   },
   "capability_mismatches": {
-    "gemini-2.0-flash": {
+    "gemma3": {
+      "privacy": 1.0,
+      "freshness": 0.2,
+      "complexity": 0.5249999999999999
+    },
+    "mistral": {
+      "privacy": 1.0,
+      "freshness": 0.15,
+      "complexity": 0.48999999999999994
+    },
+    "gemini-3.6-flash": {
       "privacy": 0.35,
       "freshness": 1.0,
-      "complexity": 0.09999999999999998
+      "complexity": 0.95
     },
     "gpt-4": {
       "privacy": 0.3,
       "freshness": 1.0,
-      "complexity": 0.13
+      "complexity": 0.98
     }
   },
   "ranking": [
-    "gemini-2.0-flash",
+    "gemma3",
+    "mistral",
+    "gemini-3.6-flash",
     "gpt-4"
   ],
-  "selected_model": "gemini-2.0-flash",
+  "selected_model": "gemma3",
   "rejected_models": [
+    "mistral",
+    "gemini-3.6-flash",
     "gpt-4"
   ],
-  "selection_margin": 0.018625000000000114,
-  "confidence": 1.0,
-  "triggered_constraints": [
-    "check_local_model"
-  ],
-  "execution_time_ms": 0.17499999376013875,
-  "timestamp": "2026-07-06T22:24:56.662259",
+  "selection_margin": 0.0044999999999999485,
+  "confidence": 0.008547008547008449,
+  "triggered_constraints": [],
+  "execution_time_ms": 2.144500002032146,
+  "timestamp": "2026-08-24T17:05:17.081483",
   "algorithm_version": "CAHRA-v1.0",
   "strategy_version": "Capability-Aware Weighted Hybrid Routing"
 }

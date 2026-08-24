@@ -1,6 +1,8 @@
 {
   "candidate_ranking": [
-    "gemini-2.0-flash",
+    "gemma3",
+    "mistral",
+    "gemini-3.6-flash",
     "gpt-4"
   ]
 }

@@ -15,7 +15,7 @@
     "latency": 0.80,
     "cost": 1.00
   },
-  "gemini-2.0-flash": {
+  "gemini-3.6-flash": {
     "type": "cloud",
     "privacy": 0.35,
     "freshness": 1.00,

@@ -1,0 +1,12 @@
+[
+  {
+    "role": "user",
+    "content": "hi",
+    "time": "2026-07-05T21:42:09.252092"
+  },
+  {
+    "role": "helios",
+    "content": "Error executing 'general_chat': 500 Server Error: Internal Server Error for url: http://localhost:11434/api/generate",
+    "time": "2026-07-05T21:42:21.549454"
+  }
+]

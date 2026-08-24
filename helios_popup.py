@@ -1,1001 +1,1540 @@
 """
-HELIOS - Desktop Chat Popup
-============================
-Features
-  🎤 Voice input  — click mic → speak → transcribed and sent automatically
-  📎 File upload  — attach any doc / image / code file for HELIOS to analyse
-  ⋮  Settings     — model, cloud, mode switcher + scrollable session history
-  
-Run
----
-    python helios_popup.py
+HELIOS v3.3 — Cognitive Operating System
+==========================================
+Application orchestrator.
 
-Voice dependencies (install once)
------------------------------------
-    pip install SpeechRecognition pyaudio
-    # If pyaudio fails on Windows:
-    pip install pipwin && pipwin install pyaudio
+Handles:
+  • Winreg system theme synchronization + 300ms animated fade transition
+  • Window size and position memory (data/window_settings.json)
+  • Bottom-right manual resize grip controller
+  • Greeting and home screen suggested actions
+  • 1.5s thinking indicator delay threshold
+  • Ctrl+K Command Palette + Ctrl+Shift+P Global Search
+  • Model label click-to-toggle floating selector drawer
+  • Cloud routing sensitive warning scanner
+  • Telemetry loop updates (diagnostics circular dials)
 """
 
+# ── Venv self-bootstrap ───────────────────────────────────────────────────────
+import sys as _sys, os as _os, subprocess as _sub
+_here    = _os.path.dirname(_os.path.abspath(__file__))
+_venv_py = _os.path.join(_here, "venv", "Scripts", "python.exe")
+_in_venv = (
+    _os.path.normcase(getattr(_sys, "prefix", "")) ==
+    _os.path.normcase(_os.path.join(_here, "venv"))
+)
+if _os.path.exists(_venv_py) and not _in_venv:
+    _sub.Popen([_venv_py] + _sys.argv)
+    _sys.exit(0)
+del _here, _venv_py, _in_venv, _sub
+# ──────────────────────────────────────────────────────────────────────────────
+
+import sys
 import os
+import json
 import queue
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 import tkinter as tk
-from tkinter import filedialog
 
-# ── Voice module (graceful fallback if not importable) ────────────────────────
-try:
-    from modules.voice_input import VoiceInput, VoiceResult
-    _VOICE_AVAILABLE = True
-except Exception:
-    _VOICE_AVAILABLE = False
-    VoiceInput  = None   # type: ignore
-    VoiceResult = None   # type: ignore
+# ── UI modules ────────────────────────────────────────────────────────────────
+from ui.theme import C, F, S, W as WT, A, ThemeManager
+from ui.sound_manager import SoundManager
+from ui.animation_engine import AnimationEngine
+from ui.ambient_background import AmbientBackground
+from ui.header import Header
+from ui.navigation_rail import NavigationRail
+from ui.status_bar import StatusBar
+from ui.chat_view import ChatView
+from ui.input_panel import InputPanel
+from ui.history_panel import HistoryPanel
+from ui.models_panel import ModelsPanel
+from ui.routing_panel import RoutingPanel
+from ui.memory_panel import MemoryPanel
+from ui.diagnostics_panel import DiagnosticsPanel
+from ui.desktop_panel import DesktopPanel
+from ui.settings_drawer import SettingsDrawer
+from core.system import paths_manager, environment_manager, runtime_manager, shutdown_manager
 
-# ── Colors ────────────────────────────────────────────────────────────────────
-C = {
-    "header":   "#4f46e5",
-    "chat_bg":  "#f0f2f5",
-    "user_bg":  "#4f46e5",
-    "bot_bg":   "#ffffff",
-    "input_bg": "#ffffff",
-    "hist_bg":  "#1e1e2e",
-    "hist_hdr": "#2a2a3e",
-    "border":   "#e5e7eb",
-    "send":     "#4f46e5",
-    "fg_hdr":   "#ffffff",
-    "fg_sub":   "#c7d2fe",
-    "fg_user":  "#ffffff",
-    "fg_bot":   "#111827",
-    "fg_time":  "#9ca3af",
-    "fg_dim":   "#888899",
-    "fg_hist":  "#e0e0f0",
-    "accent":   "#6366f1",
-    "mic_idle": "#6366f1",
-    "mic_live": "#ef4444",
-    "file_bg":  "#f0f4ff",
-    "file_bd":  "#6366f1",
-}
-F = lambda s, b="normal": ("Segoe UI", s, b)
+_SETTINGS_FILE = paths_manager.get_ui_settings_path()
+_WINDOW_FILE   = paths_manager.get_window_settings_path()
+_SIMPLE_PROMPTS = {"hi", "hello", "thanks", "yes", "no", "good morning", "good evening", "good afternoon", "thank you"}
 
-# ── File-type sets ────────────────────────────────────────────────────────────
-TEXT_EXTS = {
-    ".txt", ".md", ".py", ".js", ".ts", ".html", ".css",
-    ".json", ".csv", ".log", ".xml", ".yaml", ".yml",
-    ".ini", ".cfg", ".bat", ".sh", ".java", ".c", ".cpp",
-    ".h", ".cs", ".rb", ".go", ".rs", ".sql",
-}
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"}
-DOC_EXTS   = {".pdf", ".docx", ".xlsx", ".xls", ".pptx"}
-ALL_EXTS   = TEXT_EXTS | IMAGE_EXTS | DOC_EXTS
 
-FILETYPES = [
-    ("All supported",
-     "*.txt *.md *.py *.js *.ts *.html *.css *.json *.csv *.log "
-     "*.xml *.yaml *.yml *.pdf *.docx *.xlsx *.pptx "
-     "*.png *.jpg *.jpeg *.bmp *.gif *.webp"),
-    ("Text / Code",  "*.txt *.md *.py *.js *.csv *.json *.log *.html"),
-    ("Documents",    "*.pdf *.docx *.xlsx *.pptx"),
-    ("Images",       "*.png *.jpg *.jpeg *.bmp *.gif *.webp"),
-    ("All files",    "*.*"),
-]
+class HELIOSApp:
+    """HELIOS Cognitive Operating System Orchestrator."""
+    _instance = None
 
-# ─────────────────────────────────────────────────────────────────────────────
-class HELIOSPopup:
-    def __init__(self):
+    def __init__(self) -> None:
+        if HELIOSApp._instance is not None:
+            import logging
+            logging.getLogger("helios.ui").warning("[HELIOS WINDOW] Existing HELIOSApp instance detected! Reusing existing window.")
+            return
+
+        HELIOSApp._instance = self
+        self.runtime_ctx = runtime_manager.initialize_runtime()
         self.root = tk.Tk()
-        self.root.title("HELIOS")
-        self.root.overrideredirect(True)
-        self.root.attributes("-topmost", True)
-        self.root.attributes("-alpha", 0.97)
-        self.root.configure(bg=C["chat_bg"])
-
-        W, H = 370, 560
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        self.root.geometry(f"{W}x{H}+{sw - W - 20}+{sh - H - 60}")
-        self.root.resizable(False, False)
-
-        # Core state
-        self.agent        = None
-        self.q:  queue.Queue = queue.Queue()
-
-        # Drag state
-        self._dx = self._dy = 0
-        self._dragging   = False
+        self.root.report_callback_exception = self._on_tkinter_error
+        
+        # ── Core state ────────────────────────────────────────────────────────
+        self.agent = None
+        self.q: queue.Queue = queue.Queue()
+        self._current_panel = "chat"
+        self._ui_mode = "DESKTOP_VIEW"
+        self._prev_geom = {"w": WT.WIDTH, "h": WT.HEIGHT, "x": -1, "y": -1}
         self._drag_sx = self._drag_sy = 0
+        self._resize_w = self._resize_h = 0
+        self._resize_x = self._resize_y = 0
+        
+        self._settings = self._load_settings()
+        self._start_ts = time.time()
+        
+        self._auto_route = True
+        ThemeManager.set_mode(self._settings.get("theme_mode", "dark"))
+        SoundManager.mute(not self._settings.get("sound", True))
 
-        # Input state
-        self._is_ph       = True
-        self._anim_id     = None
-        self.t_row        = None
-        self.hist_win     = None
+        self._setup_window()
 
-        # Voice state
-        self._voice: VoiceInput | None = (
-            VoiceInput(language="en-IN") if _VOICE_AVAILABLE else None
-        )
-        self._mic_active = False
+        # ── Two-Layer Composition Architecture ───────────────────────────────
+        # MAIN contains two sibling layers occupying the same area:
+        #   BACKGROUND_LAYER  — AmbientBackground canvas (always below)
+        #   FOREGROUND_LAYER  — All UI widgets (header, nav, chat, input)
+        # foreground_layer.lift() is called after both layers exist,
+        # guaranteeing foreground is always visually above background.
+        # AmbientBackground NEVER calls lift()/lower() on itself.
+        # NavigationRail tooltips NEVER call root.lift().
+        self._build_main_container()  # creates self.main
+        self._build_layers()          # creates background_layer + foreground_layer, calls foreground_layer.lift()
 
-        # File attachment state
-        self._attached_file: str | None = None
+        # Background lives entirely inside background_layer
+        self.bg = AmbientBackground(self.background_layer, WT.WIDTH, WT.HEIGHT)
 
-        self._build()
+        # ── Animation engine ──────────────────────────────────────────────────
+        self.anim = AnimationEngine(self.background_layer, self.bg.canvas, WT.WIDTH, WT.HEIGHT)
+
+        # ── UI Layout inside foreground_layer ────────────────────────────────
+        # Pack order: boundaries first (header, status, input), then expanding body.
+        # This ensures the body (chat) gets all remaining vertical space.
+        self._build_header()        # → pack(side="top", fill="x")
+        self._build_status_bar()    # → pack(side="bottom", fill="x")
+        self._build_input()         # → pack(side="bottom", fill="x")
+        self._build_content_area()  # → pack(side="top", fill="both", expand=True)
+        self._build_panels()
+        self._build_settings_drawer()
+
+        # Enforce foreground above background after all widgets created
+        self.foreground_layer.lift()
+
+        # Register avatar pulse
+        av_canvas, av_item = self.header.get_avatar_info()
+        self.anim.register_avatar(av_canvas, av_item)
+        self.anim.start()
+
+        # Apply settings
+        self.nav.set_developer_mode(self._settings.get("developer_mode", False))
+
+        # ── Resizing & Model selector click hooks ─────────────────────────────
+        self._wire_interactive_hooks()
+
+        # ── Key bindings ──────────────────────────────────────────────────────
+        self.root.bind("<Control-k>", lambda e: self._open_cmd_palette())
+        self.root.bind("<Control-Shift-P>", lambda e: self._open_global_search())
+        self.root.bind("<Escape>", lambda e: self._on_escape())
+        
+        # Custom virtual events
+        self.root.bind("<<LoadSession>>", lambda e: self._on_load_session(self._get_clipboard_text()))
+        self.root.bind("<<EditUserText>>", lambda e: self._edit_command_entry(e))
+        self.root.bind("<<SaveNote>>", lambda e: self._save_agent_note(e))
+        self.root.bind("<<Regenerate>>", lambda e: self._regenerate_last())
+
+        # ── 8-Directional Resize Binds ────────────────────────────────────────
+        self._resize_dir = ""
+        self._resize_active = False
+        self.root.bind_all("<Motion>", self._on_root_motion)
+        self.root.bind_all("<Button-1>", self._on_root_click, "+")
+        self.root.bind_all("<B1-Motion>", self._on_root_drag, "+")
+        self.root.bind_all("<ButtonRelease-1>", self._on_root_release, "+")
+
+        # ── Load Agent & Telemetry ───────────────────────────────────────────
         self._load_agent()
+        self.diag_p.start()
+
+        # ── Fade in startup & UI Watchdog ─────────────────────────────────────
+        self.root.after(100, self._startup_sequence)
+        self.root.after(2000, self._start_ui_watchdog)
         self._poll()
 
-    # ═════════════════════════════════════════════════════════════════════════
-    # BUILD UI
-    # ═════════════════════════════════════════════════════════════════════════
-    def _build(self):
-        self.root.rowconfigure(1, weight=1)
-        self.root.columnconfigure(0, weight=1)
+        self.root.mainloop()
 
-        self._build_header()
-        self._build_chat_area()
-        self._build_divider()
-        self._build_attach_bar()     # hidden by default (row 3)
-        self._build_input_bar()      # row 4
-        self._post_welcome()
+    def _on_tkinter_error(self, exc, val, tb) -> None:
+        import traceback, logging
+        log_ui = logging.getLogger("helios.ui")
+        err_msg = "".join(traceback.format_exception(exc, val, tb))
+        log_ui.error("[UI ERROR] Callback exception: %s\n%s", val, err_msg)
+        try:
+            if hasattr(self, "chat") and self.chat:
+                self.chat.add_system_notice(f"⚠ UI Warning: {val}")
+        except Exception:
+            pass
 
-    # ── Header ────────────────────────────────────────────────────────────────
-    def _build_header(self):
-        hdr = tk.Frame(self.root, bg=C["header"], height=62)
-        hdr.grid(row=0, column=0, sticky="ew")
-        hdr.columnconfigure(1, weight=1)
-        hdr.grid_propagate(False)
+    def _start_ui_watchdog(self) -> None:
+        """UI Watchdog: checks real geometry + mapping state. Logs [UI-INVARIANT] every cycle."""
+        import logging
+        log_ui = logging.getLogger("helios.ui")
+        try:
+            root_alive = hasattr(self, "root") and self.root.winfo_exists()
+            if not root_alive:
+                return
 
-        # Avatar
-        av = tk.Canvas(hdr, width=38, height=38, bg=C["header"],
-                       highlightthickness=0)
-        av.grid(row=0, column=0, padx=(10, 8), pady=12)
-        av.create_oval(1, 1, 37, 37, fill=C["accent"], outline="#818cf8")
-        av.create_text(19, 19, text="H", font=F(14, "bold"), fill="white")
+            chat_alive  = hasattr(self, "chat") and hasattr(self.chat, "frame") and self.chat.frame.winfo_exists()
+            msgs_alive  = hasattr(self, "chat") and hasattr(self.chat, "msgs")  and self.chat.msgs.winfo_exists()
+            panel_alive = hasattr(self, "panel_area") and self.panel_area.winfo_exists()
+            fg_alive    = hasattr(self, "foreground_layer") and self.foreground_layer.winfo_exists()
+            bg_alive    = hasattr(self, "background_layer") and self.background_layer.winfo_exists()
 
-        # Title / status
-        tf = tk.Frame(hdr, bg=C["header"])
-        tf.grid(row=0, column=1, sticky="w")
-        tk.Label(tf, text="HELIOS", font=F(12, "bold"),
-                 bg=C["header"], fg=C["fg_hdr"]).pack(anchor="w")
-        self.status_lbl = tk.Label(tf, text="Initializing...",
-                                    font=F(8), bg=C["header"], fg=C["fg_sub"])
-        self.status_lbl.pack(anchor="w")
+            # Real geometry check — existence ≠ visibility
+            chat_mapped  = self.chat.frame.winfo_ismapped()   if chat_alive  else False
+            chat_w       = self.chat.frame.winfo_width()      if chat_alive  else 0
+            chat_h       = self.chat.frame.winfo_height()     if chat_alive  else 0
+            chat_x       = self.chat.frame.winfo_x()          if chat_alive  else 0
+            chat_y       = self.chat.frame.winfo_y()          if chat_alive  else 0
+            fg_mapped    = self.foreground_layer.winfo_ismapped() if fg_alive else False
+            bg_mapped    = self.background_layer.winfo_ismapped() if bg_alive else False
 
-        # Window buttons  ⋮  ✕
-        bf = tk.Frame(hdr, bg=C["header"])
-        bf.grid(row=0, column=2, padx=8)
-
-        self.dots_btn = tk.Label(bf, text="⋮", font=F(16), bg=C["header"],
-                                  fg=C["fg_sub"], cursor="hand2")
-        self.dots_btn.pack(side="left", padx=(0, 8))
-        self.dots_btn.bind("<ButtonRelease-1>", self._on_dots_click)
-
-        self.close_btn = tk.Label(bf, text="✕", font=F(13), bg=C["header"],
-                                   fg=C["fg_sub"], cursor="hand2")
-        self.close_btn.pack(side="left")
-        self.close_btn.bind("<ButtonRelease-1>", self._on_close_click)
-
-        # Drag bindings (only on non-interactive parts)
-        for w in (hdr, av, tf):
-            w.bind("<ButtonPress-1>",   self._drag_start)
-            w.bind("<B1-Motion>",       self._drag_do)
-            w.bind("<ButtonRelease-1>", self._drag_end)
-
-    # ── Chat area ─────────────────────────────────────────────────────────────
-    def _build_chat_area(self):
-        cf = tk.Frame(self.root, bg=C["chat_bg"])
-        cf.grid(row=1, column=0, sticky="nsew")
-        cf.rowconfigure(0, weight=1)
-        cf.columnconfigure(0, weight=1)
-
-        self.canvas = tk.Canvas(cf, bg=C["chat_bg"], highlightthickness=0, bd=0)
-        vsb = tk.Scrollbar(cf, orient="vertical", command=self.canvas.yview)
-        self.canvas.configure(yscrollcommand=vsb.set)
-        self.canvas.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-
-        self.msgs = tk.Frame(self.canvas, bg=C["chat_bg"])
-        self._cw  = self.canvas.create_window((0, 0), window=self.msgs,
-                                               anchor="nw")
-        self.msgs.bind("<Configure>", lambda e:
-            self.canvas.configure(scrollregion=self.canvas.bbox("all")))
-        self.canvas.bind("<Configure>", lambda e:
-            self.canvas.itemconfig(self._cw, width=e.width))
-        self.canvas.bind_all("<MouseWheel>",
-            lambda e: self.canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
-
-    def _build_divider(self):
-        tk.Frame(self.root, bg=C["border"], height=1).grid(
-            row=2, column=0, sticky="ew")
-
-    # ── Attachment preview bar (row 3, hidden until file is picked) ───────────
-    def _build_attach_bar(self):
-        self.attach_bar = tk.Frame(self.root, bg=C["file_bg"],
-                                    highlightthickness=1,
-                                    highlightbackground=C["file_bd"])
-        # Not gridded yet
-        self.attach_lbl = tk.Label(self.attach_bar, text="",
-                                    font=F(8), bg=C["file_bg"],
-                                    fg=C["accent"], anchor="w")
-        self.attach_lbl.pack(side="left", padx=(8, 4), pady=4)
-        clr = tk.Label(self.attach_bar, text="✕", font=F(9),
-                        bg=C["file_bg"], fg="#9ca3af", cursor="hand2")
-        clr.pack(side="right", padx=6)
-        clr.bind("<ButtonRelease-1>", lambda e: self._clear_attachment())
-
-    # ── Input bar (row 4) ─────────────────────────────────────────────────────
-    def _build_input_bar(self):
-        inp = tk.Frame(self.root, bg=C["input_bg"])
-        inp.grid(row=4, column=0, sticky="ew")
-        inp.columnconfigure(1, weight=1)
-
-        # Column 0 — 📎 attach button
-        self.attach_btn = tk.Label(inp, text="📎", font=F(14),
-                                    bg=C["input_bg"], fg="#9ca3af",
-                                    cursor="hand2")
-        self.attach_btn.grid(row=0, column=0, padx=(10, 4), pady=10)
-        self.attach_btn.bind("<ButtonRelease-1>", lambda e: self._pick_file())
-
-        # Column 1 — text entry
-        self.entry = tk.Entry(inp, font=F(10), bg=C["input_bg"], fg="#9ca3af",
-                               relief="flat", bd=0,
-                               insertbackground=C["send"])
-        self.entry.grid(row=0, column=1, sticky="ew", pady=12)
-        self.entry.insert(0, "Write a message...")
-        self.entry.bind("<FocusIn>",  self._ph_clear)
-        self.entry.bind("<FocusOut>", self._ph_restore)
-        self.entry.bind("<Return>",   self._send)
-
-        # Column 2 — 🎤 mic button (canvas so we can redraw it)
-        self.mic_c = tk.Canvas(inp, width=32, height=32, bg=C["input_bg"],
-                                highlightthickness=0, cursor="hand2")
-        self.mic_c.grid(row=0, column=2, padx=4, pady=10)
-        self._draw_mic(idle=True)
-        self.mic_c.bind("<ButtonRelease-1>", self._on_mic_click)
-
-        # Column 3 — ➤ send button
-        sc = tk.Canvas(inp, width=36, height=36, bg=C["input_bg"],
-                        highlightthickness=0, cursor="hand2")
-        sc.grid(row=0, column=3, padx=(2, 10), pady=8)
-        sc.create_oval(2, 2, 34, 34, fill=C["send"], outline="")
-        sc.create_text(18, 18, text="➤", font=F(11, "bold"), fill="white")
-        sc.bind("<Button-1>", self._send)
-
-    def _post_welcome(self):
-        self._add_msg(
-            "Hi! I'm HELIOS — your system control AI.\n\n"
-            "  🎤 Click the mic and speak — I'll transcribe and act\n"
-            "  📎 Click the clip to attach a file for analysis\n"
-            "  ⌨  Or just type a command in plain English",
-            "helios")
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # DRAG
-    # ═════════════════════════════════════════════════════════════════════════
-    def _drag_start(self, e):
-        self._dragging = False
-        self._dx = e.x_root - self.root.winfo_x()
-        self._dy = e.y_root - self.root.winfo_y()
-        self._drag_sx = e.x_root
-        self._drag_sy = e.y_root
-
-    def _drag_do(self, e):
-        if abs(e.x_root - self._drag_sx) > 3 or abs(e.y_root - self._drag_sy) > 3:
-            self._dragging = True
-        if self._dragging:
-            self.root.geometry(f"+{e.x_root - self._dx}+{e.y_root - self._dy}")
-
-    def _drag_end(self, e):
-        self.root.after(50, lambda: setattr(self, "_dragging", False))
-
-    def _on_dots_click(self, e):
-        if not self._dragging:
-            self._toggle_hist()
-
-    def _on_close_click(self, e):
-        if not self._dragging:
-            if self.agent:
-                try: self.agent.shutdown()
-                except: pass
-            self.root.destroy()
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # PLACEHOLDER
-    # ═════════════════════════════════════════════════════════════════════════
-    def _ph_clear(self, e):
-        if self._is_ph:
-            self.entry.delete(0, tk.END)
-            self.entry.configure(fg="#374151")
-            self._is_ph = False
-
-    def _ph_restore(self, e):
-        if not self.entry.get():
-            self.entry.insert(0, "Write a message...")
-            self.entry.configure(fg="#9ca3af")
-            self._is_ph = True
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # MIC BUTTON
-    # ═════════════════════════════════════════════════════════════════════════
-    def _draw_mic(self, idle: bool = True):
-        """Redraw the mic canvas icon. idle=True → indigo, False → red."""
-        self.mic_c.delete("all")
-        color = C["mic_idle"] if idle else C["mic_live"]
-        # Background circle
-        self.mic_c.create_oval(1, 1, 31, 31, fill=color, outline="")
-        # Mic capsule body
-        self.mic_c.create_rectangle(12, 6, 20, 19,
-                                     fill="white", outline="white")
-        # Mic arc (stand)
-        self.mic_c.create_arc(8, 13, 24, 25,
-                               start=0, extent=-180,
-                               outline="white", width=2, style="arc")
-        # Stem + base line
-        self.mic_c.create_line(16, 25, 16, 28, fill="white", width=2)
-        self.mic_c.create_line(12, 28, 20, 28, fill="white", width=2)
-
-    def _on_mic_click(self, e):
-        """Toggle voice recording on/off."""
-        if not _VOICE_AVAILABLE or self._voice is None:
-            self._set_status("⚠ Install: pip install SpeechRecognition pyaudio")
-            return
-
-        if self._mic_active:
-            # Second click — stop early
-            self._voice.stop()
-            self._mic_active = False
-            self._draw_mic(idle=True)
-            self._set_status("Recording stopped.")
-            return
-
-        if not self.agent:
-            self._set_status("⚠ Agent not ready yet.")
-            return
-
-        # Start recording
-        self._mic_active = True
-        self._draw_mic(idle=False)
-        self._set_status("🎤 Listening… click again to stop")
-
-        self._voice.start(callback=self._on_voice_result)
-
-    def _on_voice_result(self, result: "VoiceResult"):
-        """
-        Called from the voice thread when recording + transcription finish.
-        Must post to the main thread via queue — never touch Tkinter directly.
-        """
-        self._mic_active = False
-        if result.success:
-            self.q.put(("__voice__", result.text, result.engine))
-        else:
-            self.q.put(("__status__", f"⚠ {result.error}"))
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # FILE ATTACHMENT
-    # ═════════════════════════════════════════════════════════════════════════
-    def _pick_file(self):
-        path = filedialog.askopenfilename(
-            title="Attach file for HELIOS to analyse",
-            filetypes=FILETYPES,
-        )
-        if not path:
-            return
-        self._attached_file = path
-        p   = Path(path)
-        sz  = p.stat().st_size
-        szs = f"{sz // 1024} KB" if sz >= 1024 else f"{sz} B"
-        self.attach_lbl.configure(text=f"📄 {p.name}  [{szs}]")
-        self.attach_bar.grid(row=3, column=0, sticky="ew")
-        self.attach_btn.configure(fg=C["accent"])
-
-    def _clear_attachment(self):
-        self._attached_file = None
-        self.attach_bar.grid_remove()
-        self.attach_btn.configure(fg="#9ca3af")
-
-    def _read_file_content(self, path: str) -> str:
-        """
-        Read file content into a string suitable for the LLM context.
-        Handles: plain text, PDF, DOCX, XLSX, images.
-        Max ~8 000 chars to stay within model context window.
-        """
-        p   = Path(path)
-        ext = p.suffix.lower()
-
-        # ── Plain text / code ────────────────────────────────────────────
-        if ext in TEXT_EXTS:
-            try:
-                content = p.read_text(encoding="utf-8", errors="ignore")
-                if len(content) > 8000:
-                    content = content[:8000] + f"\n\n...[truncated, {len(content)} chars total]"
-                return f"[File: {p.name}]\n\n{content}"
-            except Exception as exc:
-                return f"[Could not read {p.name}: {exc}]"
-
-        # ── PDF ──────────────────────────────────────────────────────────
-        if ext == ".pdf":
-            try:
-                import PyPDF2
-                with open(path, "rb") as f:
-                    reader = PyPDF2.PdfReader(f)
-                pages = []
-                for i, page in enumerate(reader.pages[:15]):
-                    text = (page.extract_text() or "").strip()
-                    if text:
-                        pages.append(f"--- Page {i+1} ---\n{text}")
-                content = "\n\n".join(pages)[:8000]
-                return f"[PDF: {p.name}, {len(reader.pages)} pages]\n\n{content}"
-            except ImportError:
-                return f"[PDF: {p.name}]\nInstall PyPDF2: pip install PyPDF2"
-            except Exception as exc:
-                return f"[Could not read PDF {p.name}: {exc}]"
-
-        # ── DOCX ─────────────────────────────────────────────────────────
-        if ext == ".docx":
-            try:
-                import docx as docxlib
-                doc  = docxlib.Document(path)
-                text = "\n".join(para.text for para in doc.paragraphs
-                                 if para.text.strip())[:8000]
-                return f"[DOCX: {p.name}]\n\n{text}"
-            except ImportError:
-                return f"[DOCX: {p.name}]\nInstall python-docx: pip install python-docx"
-            except Exception as exc:
-                return f"[Could not read DOCX {p.name}: {exc}]"
-
-        # ── XLSX / XLS ────────────────────────────────────────────────────
-        if ext in (".xlsx", ".xls"):
-            try:
-                import openpyxl
-                wb    = openpyxl.load_workbook(path, read_only=True, data_only=True)
-                lines = []
-                for sheet in wb.sheetnames[:3]:
-                    ws = wb[sheet]
-                    lines.append(f"=== Sheet: {sheet} ===")
-                    for row in list(ws.iter_rows(values_only=True))[:50]:
-                        row_str = " | ".join(
-                            str(c) if c is not None else "" for c in row)
-                        if row_str.strip(" |"):
-                            lines.append(row_str)
-                return f"[Excel: {p.name}]\n\n" + "\n".join(lines)[:8000]
-            except ImportError:
-                return f"[Excel: {p.name}]\nInstall openpyxl: pip install openpyxl"
-            except Exception as exc:
-                return f"[Could not read Excel {p.name}: {exc}]"
-
-        # ── Images — Gemini Vision if available ───────────────────────────
-        if ext in IMAGE_EXTS:
-            try:
-                sz  = p.stat().st_size
-                szs = f"{sz // 1024} KB"
+            # foreground_layer must always be above background_layer
+            # Enforce it here as the safety net (architecture ensures it, this is belt+suspenders)
+            fg_above_bg = True
+            if fg_alive and bg_alive:
                 try:
-                    from PIL import Image as PILImage
-                    img  = PILImage.open(path)
-                    dims = f"{img.width}x{img.height}px, {img.mode}"
+                    # Re-lift foreground if background somehow rose above it
+                    self.foreground_layer.lift()
                 except Exception:
-                    dims = "dimensions unknown"
+                    fg_above_bg = False
 
-                if self.agent and self.agent.llm._has_gemini_key():
-                    import base64
-                    b64 = base64.b64encode(p.read_bytes()).decode()
-                    return (f"[Image: {p.name}, {dims}, {szs}]\n"
-                            f"__IMAGE_BASE64__:{ext.lstrip('.')}:{b64}")
-
-                return (f"[Image: {p.name}, {dims}, {szs}]\n"
-                        f"Describe the image or ask a question about it.\n"
-                        f"(Add a Gemini API key for AI image analysis.)")
-            except Exception as exc:
-                return f"[Image: {p.name}] (error: {exc})"
-
-        return (f"[File: {p.name}]\n"
-                f"Unsupported type '{ext}'. Supported: text, PDF, DOCX, XLSX, images.")
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # MESSAGES
-    # ═════════════════════════════════════════════════════════════════════════
-    def _add_msg(self, text: str, sender: str, tag: str = ""):
-        ts      = datetime.now().strftime("%I:%M %p")
-        is_user = sender == "user"
-
-        row = tk.Frame(self.msgs, bg=C["chat_bg"])
-        row.pack(fill="x", padx=10, pady=(6, 0))
-
-        lines = sum(max(1, -(-len(p) // 34)) for p in text.split("\n"))
-        lines = max(1, min(lines, 30))
-
-        txt = tk.Text(row, font=F(10),
-                      bg=C["user_bg"] if is_user else C["bot_bg"],
-                      fg=C["fg_user"] if is_user else C["fg_bot"],
-                      relief="flat", bd=0, padx=12, pady=8,
-                      wrap="word", width=34, height=lines,
-                      cursor="xterm", exportselection=True)
-        txt.insert("1.0", text)
-        txt.configure(state="disabled")
-
-        # Right-click copy menu
-        menu = tk.Menu(txt, tearoff=0)
-        menu.add_command(label="Copy selected",
-                         command=lambda t=txt: self._copy_sel(t))
-        menu.add_command(label="Copy all",
-                         command=lambda t=txt: self._copy_all(t))
-        txt.bind("<Button-3>", lambda e, m=menu: m.post(e.x_root, e.y_root))
-
-        def enable_sel(e, t=txt):
-            t.configure(state="normal")
-            t.after(1, lambda: t.configure(state="disabled"))
-        txt.bind("<Button-1>", enable_sel)
-
-        if is_user:
-            txt.pack(anchor="e")
-        else:
-            txt.configure(highlightthickness=1,
-                          highlightbackground=C["border"],
-                          highlightcolor=C["border"])
-            txt.pack(anchor="w")
-
-        # Timestamp + optional tag row
-        rb = tk.Frame(row, bg=C["chat_bg"])
-        rb.pack(fill="x")
-        if tag:
-            tk.Label(rb, text=tag, font=F(7), bg=C["chat_bg"],
-                     fg=C["accent"]).pack(
-                side="right" if is_user else "left")
-        tk.Label(rb, text=ts, font=F(7), bg=C["chat_bg"],
-                 fg=C["fg_time"]).pack(
-            side="right" if is_user else "left", padx=4)
-
-        self.root.after(150, lambda: self.canvas.yview_moveto(1.0))
-
-    def _copy_sel(self, t):
-        try:
-            s = t.get("sel.first", "sel.last")
-            self.root.clipboard_clear()
-            self.root.clipboard_append(s)
-        except tk.TclError:
-            pass
-
-    def _copy_all(self, t):
-        self.root.clipboard_clear()
-        self.root.clipboard_append(t.get("1.0", tk.END).strip())
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # TYPING INDICATOR
-    # ═════════════════════════════════════════════════════════════════════════
-    def _show_typing(self):
-        self.t_row = tk.Frame(self.msgs, bg=C["chat_bg"])
-        self.t_row.pack(fill="x", padx=10, pady=(6, 0))
-        self._tlbl = tk.Label(self.t_row, text="●  ○  ○  thinking",
-                               font=("Segoe UI", 9, "italic"),
-                               bg=C["bot_bg"], fg="#6b7280",
-                               padx=10, pady=6)
-        self._tlbl.pack(anchor="w")
-        self._anim(0)
-        self.root.after(150, lambda: self.canvas.yview_moveto(1.0))
-
-    def _anim(self, n):
-        frames = ["●  ○  ○", "●  ●  ○", "●  ●  ●", "○  ●  ●", "○  ○  ●"]
-        if self.t_row and self.t_row.winfo_exists():
-            self._tlbl.configure(text=f"{frames[n % 5]}  thinking")
-            self._anim_id = self.root.after(350, self._anim, n + 1)
-
-    def _hide_typing(self):
-        if self._anim_id:
-            self.root.after_cancel(self._anim_id)
-            self._anim_id = None
-        if self.t_row and self.t_row.winfo_exists():
-            self.t_row.destroy()
-            self.t_row = None
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # SEND / RECEIVE
-    # ═════════════════════════════════════════════════════════════════════════
-    def _send(self, e=None):
-        """Read entry + optional file attachment, dispatch to agent."""
-        raw_text  = self.entry.get().strip()
-        text      = "" if self._is_ph else raw_text
-        file_path = self._attached_file
-
-        if not text and not file_path:
-            return
-        if not self.agent:
-            return
-
-        # Build display string and metadata tag
-        file_name = Path(file_path).name if file_path else ""
-        if file_path and text:
-            display = f"[{file_name}]\n{text}"
-            tag     = f"📎 {file_name}"
-        elif file_path:
-            display = f"[{file_name}]"
-            tag     = f"📎 {file_name}"
-        else:
-            display = text
-            tag     = ""
-
-        # Reset UI
-        self.entry.delete(0, tk.END)
-        self._is_ph = False
-        self._clear_attachment()
-
-        self._add_msg(display, "user", tag=tag)
-        self._show_typing()
-
-        threading.Thread(
-            target=self._bg_process,
-            args=(text, file_path),
-            daemon=True,
-        ).start()
-
-    def _bg_process(self, text: str, file_path: str | None):
-        """Run agent.process() in background, post result to queue."""
-        try:
-            if file_path:
-                content = self._read_file_content(file_path)
-                if "__IMAGE_BASE64__" in content:
-                    resp = self._call_gemini_vision(file_path, content, text)
-                else:
-                    combined = (
-                        f"{content}\n\n"
-                        + (f"User question: {text}" if text else
-                           "Please analyse this file and summarise the key content.")
-                    )
-                    resp = self.agent.process(combined)
-            else:
-                resp = self.agent.process(text)
-        except Exception as exc:
-            resp = f"Error: {exc}"
-        self.q.put(("__msg__", resp))
-
-    def _call_gemini_vision(self, path: str,
-                             content: str, question: str) -> str:
-        """Send image to Gemini Vision via REST and return description."""
-        try:
-            import requests
-            marker = "__IMAGE_BASE64__:"
-            after  = content[content.index(marker) + len(marker):]
-            ext_part, b64 = after.split(":", 1)
-            prompt = question or "Describe this image in detail."
-            url    = (
-                f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"gemini-2.0-flash:generateContent"
-                f"?key={self.agent.llm.gemini_key}"
+            log_ui.debug(
+                "[UI-INVARIANT]\n"
+                "chat_exists=%s\nchat_mapped=%s\nchat_x=%s\nchat_y=%s\n"
+                "chat_width=%s\nchat_height=%s\nforeground_mapped=%s\n"
+                "background_mapped=%s\nforeground_above_background=%s",
+                chat_alive, chat_mapped, chat_x, chat_y,
+                chat_w, chat_h, fg_mapped, bg_mapped, fg_above_bg
             )
-            payload = {"contents": [{"parts": [
-                {"text": prompt},
-                {"inline_data": {
-                    "mime_type": f"image/{ext_part}",
-                    "data": b64,
-                }},
-            ]}]}
-            r = requests.post(url, json=payload, timeout=30)
-            if r.status_code == 200:
-                return (r.json()
-                        .get("candidates", [{}])[0]
-                        .get("content", {})
-                        .get("parts", [{}])[0]
-                        .get("text", "No description returned."))
-            err = r.json().get("error", {}).get("message", r.text)
-            return f"Image analysis failed: {err}"
-        except Exception as exc:
-            return (f"Image uploaded: {Path(path).name}\n"
-                    f"Vision analysis unavailable: {exc}")
+
+            # Log invariant failure
+            if chat_alive and chat_mapped and (chat_w == 0 or chat_h == 0):
+                log_ui.warning(
+                    "[UI-INVARIANT-FAIL] Chat viewport has zero dimensions: w=%s h=%s",
+                    chat_w, chat_h
+                )
+
+            # Rebuild ChatView only if widget is actually destroyed (not just zero-sized)
+            if panel_alive and (not chat_alive or not msgs_alive):
+                log_ui.warning("[UI RENDER REPAIR] ChatView widget destroyed — rebuilding.")
+                self.chat = ChatView(
+                    self.panel_area, anim_engine=getattr(self, "anim", None),
+                    on_home_action=self._insert_home_action,
+                    on_trigger_file=self._trigger_file_selection,
+                    on_drag_start=self._drag_start,
+                    on_drag_do=self._drag_do
+                )
+                self.panels["chat"] = self.chat.frame
+                self._show_panel("chat")
+                if self.agent:
+                    self._on_new_session()
+            elif msgs_alive:
+                if len(self.chat.msgs.winfo_children()) == 0 and getattr(self.chat, "_home_view", None) is None:
+                    log_ui.info("[UI RENDER REPAIR] Feed empty — restoring Home Screen.")
+                    self.chat.show_home_screen()
+
+        except Exception as ex:
+            logging.getLogger("helios.ui").error("[UI WATCHDOG ERROR] %s", ex)
+        finally:
+            if hasattr(self, "root") and self.root.winfo_exists():
+                self.root.after(2000, self._start_ui_watchdog)
 
     # ═════════════════════════════════════════════════════════════════════════
-    # POLL QUEUE  (all cross-thread UI updates come through here)
+    # INTERACTIVE HOOKS & RESIZING
     # ═════════════════════════════════════════════════════════════════════════
-    def _poll(self):
+    def _wire_interactive_hooks(self) -> None:
+        # Resize grip binds
+        self.status_bar.resize_grip.bind("<Button-1>", self._resize_start)
+        self.status_bar.resize_grip.bind("<B1-Motion>", self._resize_do)
+
+        # Model label click -> toggles input panel floating selector drawer
+        self.status_bar._lbl_model.bind("<ButtonRelease-1>", lambda e: self.inp._toggle_model_drawer())
+        self.header.status_lbl.bind("<ButtonRelease-1>", lambda e: self.inp._toggle_model_drawer())
+        self.header.avatar_cv.bind("<ButtonRelease-1>", lambda e: self.inp._toggle_model_drawer())
+
+    def _resize_start(self, e: tk.Event) -> None:
+        self._resize_w = self.root.winfo_width()
+        self._resize_h = self.root.winfo_height()
+        self._resize_x = e.x_root
+        self._resize_y = e.y_root
+
+    def _resize_do(self, e: tk.Event) -> None:
+        dw = e.x_root - self._resize_x
+        dh = e.y_root - self._resize_y
+        nw = max(WT.MIN_W, self._resize_w + dw)
+        nh = max(WT.MIN_H, self._resize_h + dh)
+        self.root.geometry(f"{nw}x{nh}")
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # WINDOW SETUP
+    # ═════════════════════════════════════════════════════════════════════════
+    def _get_hwnd(self) -> int:
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+                return hwnd if hwnd else self.root.winfo_id()
+            except Exception:
+                pass
+        return 0
+
+    def _setup_window_native_styles(self) -> None:
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                hwnd = self._get_hwnd()
+                if hwnd:
+                    GWL_EXSTYLE = -20
+                    WS_EX_APPWINDOW = 0x00040000
+                    style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+                    ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style | WS_EX_APPWINDOW)
+                    from core.desktop_session import ScreenObserver
+                    ScreenObserver.register_helios_hwnd(hwnd)
+            except Exception:
+                pass
+
+    def _setup_window(self) -> None:
+        self.root.title("HELIOS")
+        self.root.overrideredirect(True)
+        self.root.attributes("-alpha", 1.0)
+        self.root.attributes("-topmost", True)
+        self.root.configure(bg=C.BG)
+
+        self._setup_window_native_styles()
+
+        # Load size and position
+        w, h, x, y = WT.WIDTH, WT.HEIGHT, -1, -1
         try:
-            while True:
-                item = self.q.get_nowait()
-                kind = item[0] if isinstance(item, tuple) else "__msg__"
-                data = item[1] if isinstance(item, tuple) else item
-
-                if kind == "__msg__":
-                    # Agent response — show in chat
-                    self._hide_typing()
-                    self._add_msg(data, "helios")
-
-                elif kind == "__voice__":
-                    # Transcribed text — fill entry and auto-send
-                    engine = item[2] if len(item) > 2 else ""
-                    self._draw_mic(idle=True)
-                    self._set_status(f"🎤 Heard: \"{data}\"")
-                    self.entry.delete(0, tk.END)
-                    self.entry.insert(0, data)
-                    self.entry.configure(fg="#374151")
-                    self._is_ph = False
-                    # Brief delay so user sees the transcription, then send
-                    tag = f"🎤 {engine}" if engine else "🎤 Voice"
-                    self.root.after(500, lambda t=tag: self._send_voice(tag=t))
-
-                elif kind == "__status__":
-                    # Status bar update (mic errors, etc.)
-                    self._draw_mic(idle=True)
-                    self._set_status(data)
-
-        except queue.Empty:
+            if _WINDOW_FILE.exists():
+                geom = json.loads(_WINDOW_FILE.read_text())
+                w = geom.get("width", WT.WIDTH)
+                h = geom.get("height", WT.HEIGHT)
+                x = geom.get("x", -1)
+                y = geom.get("y", -1)
+        except Exception:
             pass
-        self.root.after(100, self._poll)
 
-    def _send_voice(self, tag: str = "🎤 Voice"):
-        """Same as _send() but forces a tag label on the bubble."""
-        raw_text = self.entry.get().strip()
-        text     = "" if self._is_ph else raw_text
-        if not text or not self.agent:
-            return
-        self.entry.delete(0, tk.END)
-        self._is_ph = False
-        self._add_msg(text, "user", tag=tag)
-        self._show_typing()
-        threading.Thread(
-            target=self._bg_process,
-            args=(text, None),
-            daemon=True,
-        ).start()
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        if x < 0 or x + w > sw or y < 0 or y + h > sh:
+            x = max(0, (sw - w) // 2)
+            y = max(0, (sh - h) // 2)
+
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+        self.root.minsize(WT.MIN_W, WT.MIN_H)
+
+        self.root.bind("<Configure>", self._on_configure)
+
+    def _on_configure(self, e) -> None:
+        if e.widget == self.root:
+            if getattr(self, "_resize_after_id", None):
+                try:
+                    self.root.after_cancel(self._resize_after_id)
+                except Exception:
+                    pass
+            self._resize_after_id = self.root.after(16, lambda w=e.width, h=e.height: self._apply_coalesced_resize(w, h))
+
+    def _apply_coalesced_resize(self, width: int, height: int) -> None:
+        self._resize_after_id = None
+        if hasattr(self, "anim"):
+            self.anim.resize(width, height)
+        if hasattr(self, "bg"):
+            self.bg.resize(width, height)
+        self._save_window_geometry()
+
+    def _save_window_geometry(self) -> None:
+        try:
+            _WINDOW_FILE.parent.mkdir(parents=True, exist_ok=True)
+            geom = {
+                "width":  self.root.winfo_width(),
+                "height": self.root.winfo_height(),
+                "x":      self.root.winfo_x(),
+                "y":      self.root.winfo_y()
+            }
+            _WINDOW_FILE.write_text(json.dumps(geom))
+        except Exception:
+            pass
 
     # ═════════════════════════════════════════════════════════════════════════
-    # HISTORY / SETTINGS PANEL
+    # BUILD LAYERS
     # ═════════════════════════════════════════════════════════════════════════
-    def _toggle_hist(self):
-        if self.hist_win and self.hist_win.winfo_exists():
-            self.hist_win.destroy()
-            self.hist_win = None
-            return
-        if not self.agent:
-            return
-        self._open_hist()
+    def _build_main_container(self) -> None:
+        b = WT.BORDER
+        self.main = tk.Frame(self.root, bg=C.BG, bd=0)
+        self.main.place(x=b, y=b, relwidth=1.0, relheight=1.0, width=-2*b, height=-2*b)
 
-    def _open_hist(self):
-        px, py = self.root.winfo_x(), self.root.winfo_y()
-        self.hist_win = tk.Toplevel(self.root)
-        self.hist_win.title("Settings")
-        self.hist_win.overrideredirect(True)
-        self.hist_win.attributes("-topmost", True)
-        self.hist_win.geometry(f"275x540+{px - 280}+{py}")
-        self.hist_win.configure(bg=C["hist_bg"])
+    def _build_layers(self) -> None:
+        """
+        Two-layer composition architecture.
 
-        # Header
-        hdr = tk.Frame(self.hist_win, bg=C["hist_hdr"], height=50)
-        hdr.pack(fill="x")
-        hdr.pack_propagate(False)
-        tk.Label(hdr, text="  Settings & History", font=F(11, "bold"),
-                 bg=C["hist_hdr"], fg=C["fg_hist"]).pack(side="left", pady=14)
-        cl = tk.Label(hdr, text="✕", font=F(12), bg=C["hist_hdr"],
-                      fg=C["fg_dim"], cursor="hand2")
-        cl.pack(side="right", padx=10)
-        cl.bind("<ButtonRelease-1>", lambda e: self.hist_win.destroy())
+        BACKGROUND_LAYER and FOREGROUND_LAYER are siblings inside self.main,
+        both placed at (0, 0, relwidth=1, relheight=1).
 
-        # Model switcher
-        self._hist_section(self.hist_win)
+        foreground_layer.lift() is called immediately after both exist.
+        This is the ONLY place lift() is called — never inside AmbientBackground,
+        never inside NavigationRail tooltips.
 
-        # Sessions list (scrollable)
-        tk.Label(self.hist_win, text="  Recent sessions",
-                 font=F(8), bg=C["hist_hdr"], fg=C["fg_dim"]).pack(
-            fill="x", padx=8, pady=(4, 0))
+        All UI widgets (header, nav, chat, input, status) live inside foreground_layer.
+        AmbientBackground canvas lives inside background_layer.
 
-        lf = tk.Frame(self.hist_win, bg=C["hist_bg"])
-        lf.pack(fill="both", expand=True, padx=4)
-        lf.rowconfigure(0, weight=1)
-        lf.columnconfigure(0, weight=1)
+        Even if some code elsewhere calls lift() or lower() on any child widget,
+        the two-layer boundary is maintained by the watchdog re-calling
+        foreground_layer.lift() periodically.
+        """
+        # Background layer — receives AmbientBackground canvas
+        self.background_layer = tk.Frame(self.main, bg=C.BG, bd=0)
+        self.background_layer.place(x=0, y=0, relwidth=1.0, relheight=1.0)
+        self.bg = AmbientBackground(self.background_layer, WT.WIDTH, WT.HEIGHT)
 
-        cv  = tk.Canvas(lf, bg=C["hist_bg"], highlightthickness=0)
-        vsb = tk.Scrollbar(lf, orient="vertical", command=cv.yview)
-        cv.configure(yscrollcommand=vsb.set)
-        cv.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
+        # Foreground layer — receives all UI components
+        self.foreground_layer = tk.Frame(self.main, bg=C.BG, bd=0)
+        self.foreground_layer.place(x=0, y=0, relwidth=1.0, relheight=1.0)
 
-        inner  = tk.Frame(cv, bg=C["hist_bg"])
-        win_id = cv.create_window((0, 0), window=inner, anchor="nw")
-        inner.bind("<Configure>",
-                   lambda e: cv.configure(scrollregion=cv.bbox("all")))
-        cv.bind("<Configure>",
-                lambda e: cv.itemconfig(win_id, width=e.width))
-        cv.bind("<MouseWheel>",
-                lambda e: cv.yview_scroll(int(-1*(e.delta/120)), "units"))
+        # CRITICAL: foreground must be above background
+        self.foreground_layer.lift()
 
-        sessions = self.agent.history.get_all()
-        if not sessions:
-            tk.Label(inner, text="No history yet.", font=F(9),
-                     bg=C["hist_bg"], fg="#555577", pady=20).pack()
-        else:
-            for s in sessions:
-                self._hist_item(inner, s)
-
-        # Footer
-        tk.Frame(self.hist_win, bg="#333344", height=1).pack(fill="x")
-        clr = tk.Label(self.hist_win, text="Clear All History",
-                       font=F(9), bg=C["hist_bg"], fg="#ff6b6b",
-                       cursor="hand2", pady=6)
-        clr.pack()
-        clr.bind("<ButtonRelease-1>", self._clear_hist)
-
-    def _hist_section(self, parent):
-        """Model / cloud / mode selectors + New Chat button."""
-        # Model
-        tk.Frame(parent, bg="#333344", height=1).pack(fill="x")
-        msf = tk.Frame(parent, bg=C["hist_hdr"], pady=5)
-        msf.pack(fill="x")
-        tk.Label(msf, text="  Model:", font=F(9),
-                 bg=C["hist_hdr"], fg=C["fg_dim"]).pack(side="left")
-        self.model_var = tk.StringVar(value=self.agent.llm.ollama_model)
-        available = self.agent.llm.get_available_models() or [self.agent.llm.ollama_model]
-        om = tk.OptionMenu(msf, self.model_var, *available,
-                           command=self._switch_model)
-        om.configure(font=F(8), bg="#333355", fg="#c0c0e0",
-                     activebackground="#4444aa", relief="flat",
-                     highlightthickness=0, width=16)
-        om["menu"].configure(bg="#333355", fg="#c0c0e0", font=F(9))
-        om.pack(side="left", padx=6)
-
-        # Cloud
-        tk.Frame(parent, bg="#333344", height=1).pack(fill="x")
-        cpf = tk.Frame(parent, bg=C["hist_hdr"], pady=4)
-        cpf.pack(fill="x")
-        tk.Label(cpf, text="  Cloud:", font=F(9),
-                 bg=C["hist_hdr"], fg=C["fg_dim"]).pack(side="left")
-        self.cloud_var = tk.StringVar(value=self.agent.llm.cloud_provider)
-        for cp in ("gemini", "gpt"):
-            has = (self.agent.llm._has_gemini_key() if cp == "gemini"
-                   else self.agent.llm._has_openai_key())
-            tk.Radiobutton(
-                cpf, text=f"{'✓' if has else '✗'} {cp}",
-                variable=self.cloud_var, value=cp,
-                command=lambda c=cp: self._switch_cloud(c),
-                font=F(8), bg=C["hist_hdr"],
-                fg="#22c55e" if has else "#ef4444",
-                selectcolor=C["hist_hdr"],
-                activebackground=C["hist_hdr"],
-            ).pack(side="left", padx=6)
-
-        # Mode
-        tk.Frame(parent, bg="#333344", height=1).pack(fill="x")
-        mdf = tk.Frame(parent, bg=C["hist_hdr"], pady=4)
-        mdf.pack(fill="x")
-        tk.Label(mdf, text="  Mode:", font=F(9),
-                 bg=C["hist_hdr"], fg=C["fg_dim"]).pack(side="left")
-        self.mode_var = tk.StringVar(value=self.agent.llm.mode)
-        for m in ("offline", "auto", "online"):
-            tk.Radiobutton(
-                mdf, text=m, variable=self.mode_var, value=m,
-                command=lambda mv=m: self._switch_mode(mv),
-                font=F(8), bg=C["hist_hdr"], fg=C["fg_hist"],
-                selectcolor=C["hist_hdr"], activebackground=C["hist_hdr"],
-            ).pack(side="left", padx=4)
-
-        # New chat
-        tk.Frame(parent, bg="#333344", height=1).pack(fill="x")
-        nc = tk.Label(parent, text="  + New Chat", font=F(10),
-                      bg=C["accent"], fg="white", cursor="hand2", pady=6)
-        nc.pack(fill="x", padx=8, pady=5)
-        nc.bind("<ButtonRelease-1>", self._new_chat)
-
-    def _hist_item(self, parent, session: dict):
-        sid   = session.get("id", "")
-        title = session.get("title", sid)
-        ts    = session.get("started", "")[:16].replace("T", " ")
-        count = session.get("message_count", 0)
-
-        item = tk.Frame(parent, bg=C["hist_hdr"], cursor="hand2")
-        item.pack(fill="x", padx=4, pady=2)
-        tk.Label(item, text=title, font=F(9, "bold"), bg=C["hist_hdr"],
-                 fg=C["fg_hist"], wraplength=220, justify="left").pack(
-            anchor="w", padx=8, pady=(5, 1))
-        tk.Label(item, text=f"{ts}  ·  {count} msgs", font=F(7),
-                 bg=C["hist_hdr"], fg="#555577").pack(
-            anchor="w", padx=8, pady=(0, 5))
-
-        def enter(e):  item.configure(bg="#333366")
-        def leave(e):  item.configure(bg=C["hist_hdr"])
-        def click(e):  self._load_sess(sid)
-
-        for w in (item, *item.winfo_children()):
-            w.bind("<Enter>", enter)
-            w.bind("<Leave>", leave)
-            w.bind("<ButtonRelease-1>", click)
-
-    def _load_sess(self, sid: str):
-        if not self.agent: return
-        msgs = self.agent.history.load(sid)
-        for w in self.msgs.winfo_children():
-            w.destroy()
-        for m in msgs:
-            self._add_msg(m["content"], m["role"])
-        if self.hist_win and self.hist_win.winfo_exists():
-            self.hist_win.destroy()
-            self.hist_win = None
-
-    def _new_chat(self, e=None):
-        for w in self.msgs.winfo_children():
-            w.destroy()
-        self._add_msg("New session! How can I help?", "helios")
-        if self.hist_win and self.hist_win.winfo_exists():
-            self.hist_win.destroy()
-            self.hist_win = None
-
-    def _clear_hist(self, e=None):
-        if self.agent:
-            self.agent.history.clear_all()
-        if self.hist_win and self.hist_win.winfo_exists():
-            self.hist_win.destroy()
-            self.hist_win = None
-
-    # ── Model / mode switchers ────────────────────────────────────────────────
-    def _switch_model(self, model: str):
-        if not self.agent: return
-        if model.startswith("gpt"):
-            self.agent.llm.set_mode("online")
-            self.agent.llm.set_cloud("gpt")
-            self.agent.llm.openai_model = model
-            lbl = f"GPT · {model}"
-        elif model.startswith("gemini"):
-            self.agent.llm.set_mode("online")
-            self.agent.llm.set_cloud("gemini")
-            self.agent.llm.gemini_model = model
-            lbl = f"Gemini · {model}"
-        else:
-            self.agent.llm.set_model(model)
-            self.agent.llm.set_mode("offline")
-            lbl = f"Local · {model}"
-        self.status_lbl.configure(text=lbl)
-        self._add_msg(f"Switched to: {model}", "helios")
-        if self.hist_win and self.hist_win.winfo_exists():
-            self.hist_win.destroy()
-            self.hist_win = None
-
-    def _switch_cloud(self, provider: str):
-        if not self.agent: return
-        self.agent.llm.set_cloud(provider)
-        self._add_msg(f"Cloud: {provider}", "helios")
-
-    def _switch_mode(self, mode: str):
-        if not self.agent: return
-        self.agent.llm.set_mode(mode)
-        self._add_msg(f"Mode: {mode}", "helios")
-
-    # ── Status bar helper ─────────────────────────────────────────────────────
-    def _set_status(self, text: str):
-        self.status_lbl.configure(text=text)
-
-    def _restore_status(self):
-        if not self.agent: return
-        s     = self.agent.llm.status()
-        cloud = (" · Gemini ✓" if s.get("has_gemini_key") else
-                 " · GPT ✓"   if s.get("has_openai_key")  else "")
-        self._set_status(
-            f"{'LOCAL' if s['ollama_alive'] else 'Ollama offline'}"
-            f" · {s['local_model']}{cloud}"
+    def _build_header(self) -> None:
+        self.header = Header(
+            self.foreground_layer,
+            on_close      = self._on_close,
+            on_minimize   = self._on_minimize,
+            on_maximize   = self._on_maximize,
+            on_settings   = self._toggle_settings,
+            on_drag_start = self._drag_start,
+            on_drag_do    = self._drag_do,
+            on_drag_end   = self._drag_end,
+            on_auto_toggle = self._toggle_auto_route,
+            on_compact_toggle = self._toggle_compact_mode,
         )
+        self.header.frame.pack(side="top", fill="x")
+
+    def _toggle_compact_mode(self) -> None:
+        """Instant responsive viewport mode toggle (<50ms). Preserves agent state & session."""
+        if self._ui_mode == "DESKTOP_VIEW":
+            self._prev_geom = {
+                "w": self.root.winfo_width(),
+                "h": self.root.winfo_height(),
+                "x": self.root.winfo_x(),
+                "y": self.root.winfo_y()
+            }
+            self._ui_mode = "COMPACT_VIEW"
+            if hasattr(self, "nav") and hasattr(self.nav, "frame"):
+                self.nav.frame.pack_forget()
+            new_x = max(0, self._prev_geom["x"])
+            new_y = max(0, self._prev_geom["y"])
+            self.root.geometry(f"420x760+{new_x}+{new_y}")
+            self.header.set_compact_state(True)
+        else:
+            self._ui_mode = "DESKTOP_VIEW"
+            if hasattr(self, "nav") and hasattr(self.nav, "frame"):
+                self.nav.frame.pack(side="left", fill="y", before=self.panel_area)
+            pw = self._prev_geom.get("w", WT.WIDTH)
+            ph = self._prev_geom.get("h", WT.HEIGHT)
+            px = self._prev_geom.get("x", 100)
+            py = self._prev_geom.get("y", 100)
+            self.root.geometry(f"{pw}x{ph}+{px}+{py}")
+            self.header.set_compact_state(False)
+
+    def _build_content_area(self) -> None:
+        # Body row — fills all remaining vertical space after header/input/status
+        self.content_row = tk.Frame(self.foreground_layer, bg=C.BG)
+        self.content_row.pack(side="top", fill="both", expand=True)
+
+        # NavigationRail receives foreground_layer reference for safe tooltip placement
+        self.nav = NavigationRail(
+            self.content_row, on_nav=self._on_nav,
+            tooltip_parent=self.foreground_layer,
+        )
+        self.nav.frame.pack(side="left", fill="y")
+
+        # Panel area — owns the full expandable region
+        self.panel_area = tk.Frame(self.content_row, bg=C.BG_S)
+        self.panel_area.pack(side="left", fill="both", expand=True)
+
+    def _build_panels(self) -> None:
+        self.panels: dict[str, tk.Frame] = {}
+
+        self.chat = ChatView(
+            self.panel_area, anim_engine=self.anim,
+            on_home_action=self._insert_home_action,
+            on_trigger_file=self._trigger_file_selection,
+            on_drag_start=self._drag_start,
+            on_drag_do=self._drag_do
+        )
+        self.panels["chat"] = self.chat.frame
+
+        self.memory_p = MemoryPanel(self.panel_area)
+        self.panels["memory"] = self.memory_p.frame
+
+        self.routing_p = RoutingPanel(self.panel_area)
+        self.panels["routing"] = self.routing_p.frame
+
+        self.models_p = ModelsPanel(self.panel_area, on_select=self._on_model_select)
+        self.panels["models"] = self.models_p.frame
+
+        self.history_p = HistoryPanel(
+            self.panel_area,
+            on_load  = self._on_load_session,
+            on_new   = self._on_new_session,
+            on_clear = self._on_clear_history,
+        )
+        self.panels["history"] = self.history_p.frame
+
+        self.diag_p = DiagnosticsPanel(self.panel_area)
+        self.panels["diagnostics"] = self.diag_p.frame
+        self.panels["activity"]    = self.diag_p.frame
+
+        self.desktop_p = DesktopPanel(self.panel_area)
+        self.panels["desktop"]     = self.desktop_p.frame
+
+        self._show_panel("chat")
+
+    def _show_panel(self, key: str) -> None:
+        target_frame = self.panels.get(key)
+        if not target_frame:
+            return
+        unique_frames = set(self.panels.values())
+        for frame in unique_frames:
+            if frame == target_frame:
+                frame.pack(fill="both", expand=True)
+            else:
+                frame.pack_forget()
+        self._current_panel = key
+
+    def _build_input(self) -> None:
+        self.inp = InputPanel(
+            self.foreground_layer,
+            on_send         = self._on_send,
+            on_voice_result = self._on_voice_result,
+            on_status       = self._on_status_msg,
+            on_model_change = self._on_model_select,
+            on_auto_toggle  = self._toggle_auto_route
+        )
+        self.inp.frame.pack(side="bottom", fill="x")
+
+    def _build_status_bar(self) -> None:
+        self.status_bar = StatusBar(self.foreground_layer)
+        self.status_bar.frame.pack(fill="x", side="bottom")
+
+    def _build_settings_drawer(self) -> None:
+        self.settings_drawer = SettingsDrawer(
+            self.panel_area,
+            get_settings  = lambda: self._settings,
+            save_settings = self._save_settings,
+            on_dev_mode_change = self._dev_mode_changed
+        )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    def _on_configure(self, e) -> None:
+        if e.widget == self.root:
+            if hasattr(self, "anim"):
+                self.anim.resize(e.width, e.height)
+            if hasattr(self, "bg"):
+                self.bg.resize(e.width, e.height)
+            # Re-enforce foreground above background on every resize
+            if hasattr(self, "foreground_layer") and self.foreground_layer.winfo_exists():
+                self.foreground_layer.lift()
+            self._save_window_geometry()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # STARTUP
+    # ═════════════════════════════════════════════════════════════════════════
+    def _startup_sequence(self) -> None:
+        steps = A.FADE_STEPS
+        target_alpha = WT.ALPHA
+
+        def _step(i=0):
+            if i > steps:
+                self.root.attributes("-alpha", target_alpha)
+                self._post_startup()
+                return
+            alpha = (i / steps) * target_alpha
+            self.root.attributes("-alpha", alpha)
+            self.root.after(A.FADE_IN // steps, lambda: _step(i + 1))
+
+        _step(0)
+        SoundManager.startup()
+
+    def _post_startup(self) -> None:
+        self.header.set_status("Loading agent…")
+        self.anim.set_state("thinking")
 
     # ═════════════════════════════════════════════════════════════════════════
     # AGENT LOADER
     # ═════════════════════════════════════════════════════════════════════════
-    def _load_agent(self):
-        def _init():
+    def _load_agent(self) -> None:
+        def _run():
             try:
                 from agent import HELIOSAgent
-                self.agent = HELIOSAgent()
-                # Wire reminder notifications into the chat window
-                self.agent.set_ui_notify(
-                    lambda msg: self.root.after(
-                        0, lambda m=msg: self._add_msg(m, "helios")))
-                self.root.after(0, self._restore_status)
-            except Exception as exc:
-                msg = str(exc)
-                def show(m=msg):
-                    self._set_status("Init failed")
-                    self._add_msg(
-                        f"Init failed: {m}\n\nMake sure Ollama is running:\n  ollama serve",
-                        "helios")
-                self.root.after(0, show)
+                a = HELIOSAgent()
+                self.q.put(("agent_ready", a))
+            except Exception as ex:
+                import traceback
+                self.q.put(("agent_error", str(ex) + "\n" + traceback.format_exc()))
+        threading.Thread(target=_run, daemon=True).start()
 
-        threading.Thread(target=_init, daemon=True).start()
+    def _agent_ready(self, agent) -> None:
+        self.agent = agent
+        agent.set_ui_notify(lambda msg: self.q.put(("reminder", msg)))
+        
+        current_model = getattr(agent.llm, "active_cloud_model", None) or getattr(agent.llm, "ollama_model", "gemma3")
+        mode_str = "AUTO" if getattr(self, "_auto_route", True) else "MANUAL"
+        
+        self.anim.set_state("idle")
+        self._update_all_model_displays(current_model, mode_str)
+        
+        self.history_p.refresh(agent)
+        self.settings_drawer.set_agent(agent)
+        
+        if self.chat._home_view:
+            self.chat._home_view.refresh(agent)
+
+    def _toggle_auto_route(self) -> None:
+        """Toggle Auto-Routing ON/OFF."""
+        self._auto_route = not getattr(self, "_auto_route", True)
+        if self.agent and hasattr(self.agent, "llm"):
+            if self._auto_route:
+                self.agent.llm.set_mode("auto")
+            else:
+                active_m = getattr(self.agent.llm, "active_cloud_model", None)
+                self.agent.llm.set_mode("online" if active_m else "offline")
+
+        is_auto = self._auto_route
+        self.header.set_auto_route_state(is_auto)
+
+        curr_m = getattr(self.agent.llm, "active_cloud_model", None) or getattr(self.agent.llm, "ollama_model", "gemma3") if self.agent else "gemma3"
+        mode_str = "AUTO" if is_auto else "MANUAL"
+        self._update_all_model_displays(curr_m, mode_str)
+        SoundManager.toggle()
+
+    def _update_all_model_displays(self, model: str, mode: str = None) -> None:
+        """Synchronize model display across all 5 UI components (Header, Status, Input, Gallery, Diag)."""
+        if not mode:
+            mode = "AUTO" if getattr(self, "_auto_route", True) else "MANUAL"
+            
+        self.header.set_model_status(model, mode, "Ready")
+        self.status_bar.update(model=model, mode=mode, memory="L1+L2", state="Ready")
+        self.inp.set_active_model(model)
+        self.inp.update_context(model=model, mode=mode)
+        if hasattr(self, "models_p"):
+            self.models_p.set_active(model)
+        if hasattr(self, "diag_p"):
+            self.diag_p.update_model_name(model)
+
+    def _dev_mode_changed(self, enabled: bool) -> None:
+        self.nav.set_developer_mode(enabled)
 
     # ═════════════════════════════════════════════════════════════════════════
-    def run(self):
-        self.root.mainloop()
+    # SEND & PROCESS
+    # ═════════════════════════════════════════════════════════════════════════
+    def _on_send(self, text: str, files: list[str] = None) -> None:
+        if files is None:
+            files = []
+        if not self.agent:
+            self.chat.add_system_notice("⚠ Agent loading. Please wait.")
+            return
+
+        if self._current_panel != "chat":
+            self._show_panel("chat")
+            self.nav.set_active("chat")
+
+        display_text = text
+        prompt_text  = text
+        if files:
+            tags = self._build_file_tags(files)
+            prompt_text = (text + "\n" + tags).strip() if text else tags
+            display_text = text or f"[{len(files)} file(s) attached]"
+
+        # Check if user requested opening system camera app in search bar
+        lower_t = text.lower().strip()
+        if lower_t in ["open camera", "launch camera", "start camera", "turn on camera", "open system camera"]:
+            self.chat.add_user_message(display_text)
+            try:
+                import subprocess
+                subprocess.Popen("start microsoft.windows.camera:", shell=True)
+                self.chat.add_helios_message("📷 Opened Windows System Camera application.")
+            except Exception as exc:
+                self.chat.add_system_notice(f"Failed to launch camera: {exc}")
+            return
+
+        # Check if user is triggering web search or desktop search -> switch to floating mode
+        search_triggers = ["search", "web", "google", "find", "open", "launch", "lookup", "youtube", "weather"]
+        if any(lower_t.startswith(kw) or f" {kw} " in f" {lower_t} " for kw in search_triggers):
+            if getattr(self, "_is_maximized", False):
+                self._set_floating_mode()
+
+        # Outgoing Cloud privacy checks
+        self._check_cloud_privacy(prompt_text)
+
+        self.chat.add_user_message(display_text, attachments=files)
+        self._start_ts = time.time()
+
+        # Simple prompt instant-replies short-circuit
+        is_simple = text.lower().strip() in _SIMPLE_PROMPTS and not files
+        
+        self.anim.set_state("thinking")
+        self.status_bar.set_state_thinking()
+
+        threading.Thread(
+            target=self._bg_process,
+            args=(prompt_text, is_simple),
+            daemon=True,
+        ).start()
+
+    def _check_cloud_privacy(self, text: str) -> bool:
+        if not self.agent:
+            return False
+
+        sensitive_keywords = [
+            "password", "passcode", "credit card", "debit card", "cvv",
+            "ssn", "social security", "passport", "bank account", "pin number",
+            "medical record", "tax id", "aadhaar", "pan card", "private key", "secret key"
+        ]
+        has_sensitive = any(kw in text.lower() for kw in sensitive_keywords)
+        current_model = getattr(self.agent.llm, "active_cloud_model", None) or getattr(self.agent.llm, "ollama_model", "gemma3")
+        is_cloud = "gemini" in current_model.lower() or "gpt" in current_model.lower()
+
+        if has_sensitive and is_cloud:
+            self.chat.add_system_notice(
+                "🔒 Privacy Notice: Personal/sensitive info detected in prompt. "
+                "Switched to local model (gemma3) to process on-device for security."
+            )
+            self.agent.llm.set_model("gemma3")
+            self._update_all_model_displays("gemma3", "LOCAL (PRIVACY GUARD)")
+            return True
+        return False
+
+    def _bg_process(self, prompt: str, is_simple: bool) -> None:
+        """Process reasoning. Show thinking indicator ONLY if latency exceeds 1.5s."""
+        think_w = None
+        streaming_started = False
+        time_started = time.time()
+
+        if not is_simple:
+            def _think_timer():
+                nonlocal think_w, streaming_started
+                time.sleep(1.5)
+                if not streaming_started and self._current_panel == "chat":
+                    self.q.put(("show_thinking", None))
+            threading.Thread(target=_think_timer, daemon=True).start()
+
+        try:
+            response_text = self.agent.process(prompt)
+            streaming_started = True
+
+            elapsed_ms = (time.time() - time_started) * 1000
+
+            # Extract actual model used from response text or LLM engine state
+            model_used = None
+            if "(via " in response_text and response_text.rstrip().endswith(")"):
+                try:
+                    via_part = response_text.rstrip().rsplit("(via ", 1)[1].rstrip(")")
+                    if via_part:
+                        model_used = via_part
+                except Exception:
+                    pass
+
+            if not model_used and self.agent and hasattr(self.agent, "llm"):
+                model_used = getattr(self.agent.llm, "active_cloud_model", None) or getattr(self.agent.llm, "ollama_model", "gemma3")
+
+            self.q.put(("response", {
+                "text":       response_text,
+                "elapsed_ms": elapsed_ms,
+                "model":      model_used or "gemma3",
+            }))
+        except Exception as ex:
+            streaming_started = True
+            import traceback
+            self.q.put(("error", f"{ex}\n{traceback.format_exc()}"))
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # POLL LOOP
+    # ═════════════════════════════════════════════════════════════════════════
+    def _poll(self) -> None:
+        try:
+            while True:
+                msg_type, payload = self.q.get_nowait()
+
+                if msg_type == "agent_ready":
+                    self._agent_ready(payload)
+
+                elif msg_type == "agent_error":
+                    self.anim.set_state("error")
+                    self.status_bar.set_state_error()
+                    self.chat.add_error_card("Agent Load Failure", payload, "Reinstall requirements or serve Ollama.")
+
+                elif msg_type == "show_thinking":
+                    if not self.chat._think_w:
+                        self.chat.show_thinking()
+
+                elif msg_type == "response":
+                    self._start_streaming_reply(payload)
+
+                elif msg_type == "error":
+                    self.chat.hide_thinking()
+                    self.anim.set_state("error")
+                    self.status_bar.set_state_error()
+                    self.chat.add_error_card("Execution Error", payload.split("\n")[0], "Verify your connection or prompt structure.")
+
+                elif msg_type == "voice":
+                    self.inp.populate_voice_text(payload)
+                    self.anim.set_state("idle")
+
+                elif msg_type == "reminder":
+                    self.chat.add_system_notice(f"🔔 {payload}")
+
+        except queue.Empty:
+            pass
+        self.root.after(50, self._poll)
+
+    def _on_payment_authorize(self, intent_id: str) -> None:
+        """User clicked Authorize Payment in UI card."""
+        if not self.agent or not hasattr(self.agent, "payments"):
+            self.chat.add_system_notice("⚠ Payment service unavailable.")
+            return
+
+        def _bg_auth():
+            import uuid, hmac, hashlib
+            auth_res = self.agent.payments.execute_tool_call("authorize_payment", {
+                "intent_id": intent_id,
+                "user_confirm": True
+            })
+            if not auth_res.get("success"):
+                self.root.after(0, lambda: self.chat.add_payment_result_card({
+                    "success": False,
+                    "message": auth_res.get("message", "Authorization failed")
+                }))
+                return
+
+            order_res = self.agent.payments.execute_tool_call("create_order", {
+                "intent_id": intent_id,
+                "mock": True
+            })
+            if not order_res.get("success"):
+                self.root.after(0, lambda: self.chat.add_payment_result_card({
+                    "success": False,
+                    "message": order_res.get("message", "Order creation failed")
+                }))
+                return
+
+            order_data = order_res.get("data", {}).get("order", {})
+            order_id = order_data.get("order_id", "")
+
+            payment_id = f"pay_{uuid.uuid4().hex[:14]}"
+            secret = self.agent.payments.tool.config.key_secret or "mock_secret"
+            sig = hmac.new(secret.encode("utf-8"), f"{order_id}|{payment_id}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+            verify_res = self.agent.payments.execute_tool_call("verify_payment", {
+                "intent_id": intent_id,
+                "payment_id": payment_id,
+                "order_id": order_id,
+                "signature": sig
+            })
+
+            if verify_res.get("success"):
+                try:
+                    from core.commerce.commerce_memory import CommerceMemoryRecorder
+                    from core.commerce.commerce_models import CommerceContext, RecommendationResult, CostBreakdown, ProductCandidate, CommerceIntent, CommerceIntentCategory
+                    dummy_cand = ProductCandidate("cand_verified", order_data.get("description", "Purchased Item"), "", order_data.get("amount", 0)/100.0, "Razorpay Merchant")
+                    dummy_ctx = CommerceContext(
+                        commerce_id="verified_comm",
+                        intent=CommerceIntent("", CommerceIntentCategory.PURCHASE_REQUEST, "Item"),
+                        recommendation=RecommendationResult(dummy_cand, "User authorized transaction"),
+                        cost=CostBreakdown(dummy_cand.price_inr)
+                    )
+                    CommerceMemoryRecorder.record_transaction(dummy_ctx)
+                except Exception:
+                    pass
+
+            self.root.after(0, lambda: self.chat.add_payment_result_card(verify_res.get("data", verify_res)))
+
+        threading.Thread(target=_bg_auth, daemon=True).start()
+
+    def _on_payment_cancel(self, intent_id: str) -> None:
+        """User clicked Cancel in UI card."""
+        if self.agent and hasattr(self.agent, "payments"):
+            self.agent.payments.execute_tool_call("cancel_payment", {
+                "intent_id": intent_id,
+                "reason": "Cancelled by user via UI"
+            })
+
+    def _start_streaming_reply(self, data: dict) -> None:
+        """Stream reply characters smoothly in main thread."""
+        self.chat.hide_thinking()
+        
+        model = data.get("model") or getattr(self.agent.llm, "active_cloud_model", None) or getattr(self.agent.llm, "ollama_model", "gemma3")
+        elapsed_ms = data.get("elapsed_ms", 0)
+        text = data.get("text", "")
+
+        if text.startswith("SCREEN_PERMISSION_REQUIRED_JSON:"):
+            import json
+            raw_json = text[len("SCREEN_PERMISSION_REQUIRED_JSON:"):].strip()
+            try:
+                perm_payload = json.loads(raw_json)
+                def _on_perm_decision(choice):
+                    def _bg_decision():
+                        res = self.agent.process(choice)
+                        self.q.put(("response", {"text": res, "elapsed_ms": 100, "model": model}))
+                    threading.Thread(target=_bg_decision, daemon=True).start()
+
+                self.chat.add_screen_permission_card(perm_payload, on_decision=_on_perm_decision)
+                self.anim.set_state("idle")
+                self.status_bar.set_state_ready()
+                return
+            except Exception as ex:
+                log.error("Failed to parse screen permission JSON: %s", ex)
+
+        if text.startswith("COMMERCE_INTENT_JSON:") or text.startswith("PAYMENT_INTENT_JSON:"):
+            import json
+            prefix = "COMMERCE_INTENT_JSON:" if text.startswith("COMMERCE_INTENT_JSON:") else "PAYMENT_INTENT_JSON:"
+            try:
+                raw_json = text[len(prefix):].strip()
+                comm_res = json.loads(raw_json)
+                prep_res = comm_res.get("payment_prepared") or comm_res
+                intent_data = prep_res.get("data", {})
+                self.chat.add_payment_transaction_card(
+                    intent_data,
+                    on_authorize=self._on_payment_authorize,
+                    on_cancel=self._on_payment_cancel
+                )
+                self.anim.set_state("idle")
+                self.status_bar.set_state_ready()
+                return
+            except Exception as ex:
+                log.error("Failed to parse commerce intent JSON: %s", ex)
+
+        card, txt, lbl_m = self.chat.add_streaming_helios_message()
+
+        def _stream_tick(idx=0):
+            if not txt.winfo_exists():
+                return
+            if idx < len(text):
+                chunk = text[:idx+3]
+                self.chat.update_streaming_content(txt, lbl_m, chunk)
+                self.root.after(20, lambda: _stream_tick(idx + 3))
+            else:
+                self.chat.update_streaming_content(txt, lbl_m, text, {
+                    "model": model,
+                    "elapsed_ms": elapsed_ms
+                })
+                # Re-add final binds
+                self.chat._cards_registry[-1]["text_content"] = text
+                self.chat._cards_registry[-1]["type"] = "assistant"
+                self.chat._on_theme_changed()
+
+                self.anim.set_state("success")
+                self.root.after(2000, lambda: self.anim.set_state("idle"))
+                
+                mode_str = "AUTO" if getattr(self, "_auto_route", True) else "MANUAL"
+                self._update_all_model_displays(model, mode_str)
+                self.status_bar.update(model=model, mode=mode_str, latency=f"{elapsed_ms:.0f}", state="Ready")
+                self.status_bar.set_state_ready()
+
+                # Activity & Diagnostics live data binding
+                self._action_count = getattr(self, "_action_count", 0) + 1
+                is_cloud = bool("gemini" in model.lower() or "gpt" in model.lower())
+                self.diag_p.record_latency(elapsed_ms)
+                self.diag_p.update_session(actions=self._action_count, verified=self._action_count, failed=0, state="idle", state_label="Ready")
+                self.diag_p.update_llm(model=model, latency_ms=elapsed_ms, requests=self._action_count, is_local=not is_cloud)
+                self.diag_p.add_activity_log(f"Processed: '{text[:30]}...' via {model} ({elapsed_ms:.0f}ms)")
+
+        _stream_tick(0)
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # DELEGATES
+    # ═════════════════════════════════════════════════════════════════════════
+    def _get_clipboard_text(self) -> str:
+        try:
+            return self.root.clipboard_get()
+        except Exception:
+            return ""
+
+    def _insert_home_action(self, cmd_text: str) -> None:
+        self.inp.entry.delete(0, tk.END)
+        self.inp.entry.insert(0, cmd_text)
+        self.inp.entry.configure(fg=C.FG_1)
+        self.inp._is_ph = False
+        self.inp.entry.focus_set()
+
+    def _trigger_file_selection(self) -> None:
+        self.inp._pick_files()
+
+    def _edit_command_entry(self, e) -> None:
+        txt = self._get_clipboard_text()
+        self._insert_home_action(txt)
+
+    def _save_agent_note(self, e) -> None:
+        text = self._get_clipboard_text()
+        if self.agent:
+            try:
+                self.agent.notes.add(text[:30], text)
+                self.chat.add_system_notice("Note saved successfully.")
+            except Exception as ex:
+                self.chat.add_system_notice(f"Failed to save note: {ex}")
+
+    def _regenerate_last(self) -> None:
+        if self.agent:
+            hist = self.agent.history.messages
+            user_queries = [m for m in hist if m.get("role") == "user"]
+            if user_queries:
+                self._on_send(user_queries[-1]["content"], [])
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # GLOBAL SEARCH & COMMAND PALETTE
+    # ═════════════════════════════════════════════════════════════════════════
+    def _open_global_search(self) -> None:
+        if hasattr(self, "_search_win") and self._search_win.winfo_exists():
+            self._search_win.destroy()
+            return
+
+        win = tk.Toplevel(self.root)
+        self._search_win = win
+        win.overrideredirect(True)
+        win.attributes("-topmost", True)
+        win.configure(bg=C.BG_C2)
+
+        rx = self.root.winfo_rootx()
+        ry = self.root.winfo_rooty()
+        pw, ph = 340, 400
+        win.geometry(f"{pw}x{ph}+{rx + (WT.WIDTH - pw)//2}+{ry + 80}")
+        win.attributes("-alpha", 0.98)
+
+        tk.Label(win, text="Global Search (Files, Settings, History)",
+                 font=(F._PRIMARY, F.SM, "bold"),
+                 bg=C.BG_C2, fg=C.FG_1, pady=8).pack(fill="x")
+
+        sv = tk.StringVar()
+        entry = tk.Entry(win, textvariable=sv, font=(F._FALLBACK, F.MD),
+                         bg=C.BG_INPUT, fg=C.FG_1, relief="flat", bd=6, insertbackground=C.BLUE)
+        entry.pack(fill="x", padx=8, pady=(0, 4))
+        entry.focus_set()
+
+        tk.Frame(win, bg=C.BORDER, height=1).pack(fill="x")
+
+        list_frame = tk.Frame(win, bg=C.BG_C2)
+        list_frame.pack(fill="both", expand=True, padx=4, pady=4)
+
+        def _search(*a):
+            q = sv.get().lower().strip()
+            for w in list_frame.winfo_children():
+                w.destroy()
+
+            results = []
+            
+            # History
+            if self.agent:
+                for s in (self.agent.history.get_all() or []):
+                    if not q or q in s.get("title", "").lower():
+                        results.append((f"💬 History: {s.get('title')}", lambda sid=s.get("id"): (self._on_load_session(sid), win.destroy())))
+            
+            # Settings
+            settings_opts = [
+                ("⚙ Action: Toggle Light Mode", lambda: (ThemeManager.set_mode("light", self.root), win.destroy())),
+                ("⚙ Action: Toggle Dark Mode",  lambda: (ThemeManager.set_mode("dark", self.root), win.destroy())),
+                ("⚙ Action: Toggle System Theme", lambda: (ThemeManager.set_mode("system", self.root), win.destroy())),
+                ("⚙ Page: Open Diagnostics",     lambda: (self._on_nav("diagnostics"), win.destroy())),
+                ("⚙ Page: Open Settings Drawer",  lambda: (self._toggle_settings(), win.destroy())),
+            ]
+            for label, cb in settings_opts:
+                if not q or q in label.lower():
+                    results.append((label, cb))
+
+            # Models
+            for m in _MODEL_CATALOG:
+                if not q or q in m["name"].lower():
+                    results.append((f"▦ Model: {m['name']} ({m['provider']})", lambda mid=m["id"]: (self._on_model_select(mid), win.destroy())))
+
+            for label, cb in results[:8]:
+                self._search_item(list_frame, label, cb)
+
+        sv.trace_add("write", _search)
+        _search()
+
+        win.bind("<Escape>", lambda e: win.destroy())
+
+    def _search_item(self, parent: tk.Widget, label: str, cb: callable) -> None:
+        btn = tk.Label(parent, text=f"  {label}", font=(F._FALLBACK, F.SM),
+                       bg=C.BG_C2, fg=C.FG_2, anchor="w", cursor="hand2", pady=6)
+        btn.pack(fill="x")
+
+        def enter(e): btn.configure(bg=C.BG_HOVER, fg=C.FG_1)
+        def leave(e): btn.configure(bg=C.BG_C2, fg=C.FG_2)
+        btn.bind("<Enter>", enter)
+        btn.bind("<Leave>", leave)
+        btn.bind("<ButtonRelease-1>", lambda e: cb())
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # COMMAND PALETTE (Ctrl+K)
+    # ═════════════════════════════════════════════════════════════════════════
+    def _open_cmd_palette(self) -> None:
+        if hasattr(self, "_palette") and self._palette.winfo_exists():
+            self._palette.destroy()
+            return
+
+        pal = tk.Toplevel(self.root)
+        self._palette = pal
+        pal.overrideredirect(True)
+        pal.attributes("-topmost", True)
+        pal.configure(bg=C.BG_C2)
+
+        rx = self.root.winfo_rootx()
+        ry = self.root.winfo_rooty()
+        pw, ph = 320, 380
+        pal.geometry(f"{pw}x{ph}+{rx + (WT.WIDTH - pw)//2}+{ry + 80}")
+        pal.attributes("-alpha", 0.98)
+
+        tk.Label(pal, text="Command Palette",
+                 font=(F._PRIMARY, F.SM, "bold"),
+                 bg=C.BG_C2, fg=C.FG_1, pady=8).pack(fill="x", padx=12)
+
+        sv = tk.StringVar()
+        se = tk.Entry(pal, textvariable=sv, font=(F._FALLBACK, F.MD),
+                      bg=C.BG_INPUT, fg=C.FG_1, relief="flat", bd=6, insertbackground=C.BLUE)
+        se.insert(0, "Search commands…")
+        se.pack(fill="x", padx=8, pady=(0, 4))
+        se.focus_set()
+
+        tk.Frame(pal, bg=C.BORDER, height=1).pack(fill="x")
+
+        cmds = [
+            ("◎  New Chat",            self._on_new_session),
+            ("◎  Switch to Chat",      lambda: self._on_nav("chat")),
+            ("▦  Models",              lambda: self._on_nav("models")),
+            ("≡  History",             lambda: self._on_nav("history")),
+            ("✦  Diagnostics",         lambda: self._on_nav("diagnostics")),
+            ("⚙  Settings",            self._toggle_settings),
+            ("✕  Close Window",        self._on_close),
+        ]
+
+        list_frame = tk.Frame(pal, bg=C.BG_C2)
+        list_frame.pack(fill="both", expand=True, padx=4, pady=4)
+
+        def _filter(*a):
+            q = sv.get().lower()
+            for w in list_frame.winfo_children():
+                w.destroy()
+            for label, cmd in cmds:
+                if not q or q in label.lower() or "search" in q:
+                    self._pal_item(list_frame, label, cmd, pal)
+
+        sv.trace_add("write", _filter)
+        _filter()
+
+        pal.bind("<Escape>", lambda e: pal.destroy())
+
+    def _pal_item(self, parent: tk.Widget, label: str, cmd: callable, pal: tk.Toplevel) -> None:
+        btn = tk.Label(parent, text=f"  {label}", font=(F._FALLBACK, F.SM),
+                       bg=C.BG_C2, fg=C.FG_2, anchor="w", cursor="hand2", pady=6)
+        btn.pack(fill="x")
+
+        def enter(e): btn.configure(bg=C.BG_HOVER, fg=C.FG_1)
+        def leave(e): btn.configure(bg=C.BG_C2, fg=C.FG_2)
+        def click(e):
+            pal.destroy()
+            cmd()
+
+        btn.bind("<Enter>", enter)
+        btn.bind("<Leave>", leave)
+        btn.bind("<ButtonRelease-1>", click)
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # DELEGATES & ACTIONS
+    # ═════════════════════════════════════════════════════════════════════════
+    def _toggle_settings(self) -> None:
+        self.settings_drawer.toggle()
+
+    def _on_voice_result(self, text: str) -> None:
+        self.q.put(("voice", text))
+
+    def _on_nav(self, key: str) -> None:
+        if key == "settings":
+            self._toggle_settings()
+            return
+        if hasattr(self, "settings_drawer") and self.settings_drawer._visible:
+            self.settings_drawer.close_()
+        self._show_panel(key)
+        if key == "routing":
+            self.routing_p.refresh()
+        elif key == "history":
+            self.history_p.refresh(self.agent)
+        elif key in ("diagnostics", "activity"):
+            self._sync_activity_telemetry()
+            self.diag_p.refresh()
+        elif key == "desktop":
+            self.desktop_p.refresh()
+
+    def _sync_activity_telemetry(self) -> None:
+        if not hasattr(self, "diag_p"):
+            return
+        actions = getattr(self, "_action_count", 0)
+        curr_model = getattr(self, "_active_model", "gemma3")
+        is_cloud = bool("gemini" in curr_model.lower() or "gpt" in curr_model.lower())
+        
+        self.diag_p.update_session(actions=actions, verified=actions, failed=0, state="idle", state_label="Ready")
+        self.diag_p.update_llm(model=curr_model, requests=actions, is_local=not is_cloud)
+        
+        try:
+            from ui.desktop_panel import _get_active_window_title
+            curr_app = _get_active_window_title()
+            self.diag_p.update_screen(app_name=curr_app, is_local=True)
+        except Exception:
+            pass
+
+    def _on_load_session(self, session_id: str) -> None:
+        if not self.agent or not session_id:
+            return
+        try:
+            msgs = self.agent.history.load(session_id)
+            self.chat.clear()
+            for m in (msgs or []):
+                if m.get("role") == "user":
+                    self.chat.add_user_message(m.get("content", ""))
+                else:
+                    self.chat.add_helios_message(m.get("content", ""))
+            self._show_panel("chat")
+            self.nav.set_active("chat")
+        except Exception as ex:
+            self.chat.add_system_notice(f"Failed to load: {ex}")
+
+    def _on_new_session(self) -> None:
+        if self.agent:
+            try:
+                from modules.chat_history import ChatHistory
+                self.agent.history = ChatHistory()
+            except Exception:
+                pass
+        self.chat.show_home_screen()
+        self._show_panel("chat")
+        self.nav.set_active("chat")
+        SoundManager.model_switch()
+
+    def _on_clear_history(self) -> None:
+        if self.agent:
+            try:
+                self.agent.history.clear_all()
+            except Exception:
+                pass
+        self.history_p.refresh(self.agent)
+        if self.chat._home_view:
+            self.chat._home_view.refresh(self.agent)
+
+    def _on_model_select(self, model_id: str) -> None:
+        if not self.agent:
+            return
+        try:
+            self.agent.llm.set_model(model_id)
+            if not getattr(self, "_auto_route", True):
+                is_cloud = "gemini" in model_id.lower() or "gpt" in model_id.lower()
+                self.agent.llm.set_mode("online" if is_cloud else "offline")
+        except Exception:
+            pass
+        mode_str = "AUTO" if getattr(self, "_auto_route", True) else "MANUAL"
+        self._update_all_model_displays(model_id, mode_str)
+        SoundManager.model_switch()
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # SETTINGS
+    # ═════════════════════════════════════════════════════════════════════════
+    def _load_settings(self) -> dict:
+        try:
+            if _SETTINGS_FILE.exists():
+                return json.loads(_SETTINGS_FILE.read_text())
+        except Exception:
+            pass
+        return {
+            "mode": "auto",
+            "language": "en-IN",
+            "auto_scroll": True,
+            "theme_mode": "dark",
+            "reduced_motion": False,
+            "high_contrast": False,
+            "font_scale": "Normal",
+            "sound": True,
+            "voice_lang": "en-IN",
+            "save_diagnostics": True,
+            "save_log": True,
+            "routing_warnings": True,
+            "developer_mode": False
+        }
+
+    def _save_settings(self, data: dict) -> None:
+        self._settings.update(data)
+        try:
+            _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+            _SETTINGS_FILE.write_text(json.dumps(self._settings, indent=2))
+        except Exception:
+            pass
+        
+        # Apply theme with smooth transitions
+        ThemeManager.set_mode(self._settings.get("theme_mode", "dark"), self.root)
+        SoundManager.mute(not self._settings.get("sound", True))
+        
+        self._dev_mode_changed(self._settings.get("developer_mode", False))
+
+    def _build_file_tags(self, files: list[str]) -> str:
+        tags = []
+        for path_str in files:
+            path = Path(path_str)
+            if not path.exists():
+                tags.append(f"[ATTACHED FILE: {path_str} (File Not Found)]")
+                continue
+
+            ext = path.suffix.lower()
+            content = ""
+
+            if ext in {".docx", ".doc"}:
+                try:
+                    import docx
+                    doc = docx.Document(str(path))
+                    content = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+                except Exception as e:
+                    content = f"Could not read DOCX content: {e}"
+
+            elif ext == ".pdf":
+                try:
+                    import pypdf
+                    reader = pypdf.PdfReader(str(path))
+                    content = "\n".join(page.extract_text() or "" for page in reader.pages)
+                except Exception:
+                    try:
+                        import PyPDF2
+                        reader = PyPDF2.PdfReader(str(path))
+                        content = "\n".join(page.extract_text() or "" for page in reader.pages)
+                    except Exception as e:
+                        content = f"Could not read PDF content: {e}"
+
+            elif ext in {".txt", ".md", ".py", ".js", ".ts", ".html", ".css", ".json", ".csv", ".log"}:
+                try:
+                    content = path.read_text(encoding="utf-8", errors="ignore")
+                except Exception as e:
+                    content = f"Could not read text content: {e}"
+
+            if content:
+                if len(content) > 15000:
+                    content = content[:15000] + "\n... [Content truncated for processing]"
+                tags.append(f"[ATTACHED FILE CONTENT ({path.name})]:\n{content}")
+            else:
+                tags.append(f"[ATTACHED FILE: {path.name}]")
+
+        return "\n\n".join(tags)
+
+    def _on_status_msg(self, text: str) -> None:
+        self.status_bar.update(state=text)
+
+    def _on_close(self) -> None:
+        shutdown_manager.shutdown(
+            agent_instance=self.agent,
+            ui_anim_engine=getattr(self, "anim", None),
+            ui_diag_panel=getattr(self, "diag_p", None)
+        )
+        self.root.destroy()
+
+    def _on_minimize(self) -> None:
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                hwnd = self._get_hwnd()
+                if hwnd:
+                    ctypes.windll.user32.ShowWindow(hwnd, 6) # SW_MINIMIZE
+                    return
+            except Exception:
+                pass
+        self.root.iconify()
+
+    def _get_work_area(self) -> tuple[int, int, int, int]:
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                class RECT(ctypes.Structure):
+                    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                                ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+                rect = RECT()
+                ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(rect), 0)
+                w = rect.right - rect.left
+                h = rect.bottom - rect.top
+                return rect.left, rect.top, w, h
+            except Exception:
+                pass
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        return 0, 0, sw, sh - 40
+
+    def _on_maximize(self) -> None:
+        if getattr(self, "_is_maximized", False):
+            self._is_maximized = False
+            nw = getattr(self, "_normal_w", WT.WIDTH)
+            nh = getattr(self, "_normal_h", WT.HEIGHT)
+            nx = getattr(self, "_normal_x", 100)
+            ny = getattr(self, "_normal_y", 100)
+            self.root.geometry(f"{nw}x{nh}+{nx}+{ny}")
+            if hasattr(self, "header"):
+                self.header.set_maximized_state(False)
+        else:
+            self._normal_w = self.root.winfo_width()
+            self._normal_h = self.root.winfo_height()
+            self._normal_x = self.root.winfo_x()
+            self._normal_y = self.root.winfo_y()
+            self._is_maximized = True
+
+            x, y, w, h = self._get_work_area()
+            self.root.geometry(f"{w}x{h}+{x}+{y}")
+            if hasattr(self, "header"):
+                self.header.set_maximized_state(True)
+
+    def _set_floating_mode(self) -> None:
+        """Minimizes window to small floating overlay mode for web/desktop searches."""
+        self._is_maximized = False
+        try:
+            self.root.state("normal")
+        except Exception:
+            pass
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        w, h = 420, 700
+        x = sw - w - 20
+        y = sh - h - 60
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _on_escape(self) -> None:
+        if hasattr(self, "_palette") and self._palette.winfo_exists():
+            self._palette.destroy()
+        elif hasattr(self, "_search_win") and self._search_win.winfo_exists():
+            self._search_win.destroy()
+        elif self.settings_drawer._visible:
+            self.settings_drawer.close_()
+
+    def _drag_start(self, e: tk.Event) -> None:
+        self._drag_sx = e.x_root - self.root.winfo_rootx()
+        self._drag_sy = e.y_root - self.root.winfo_rooty()
+
+    def _drag_do(self, e: tk.Event) -> None:
+        if self._resize_active or self._resize_dir:
+            return
+        x = e.x_root - self._drag_sx
+        y = e.y_root - self._drag_sy
+        
+        try:
+            sw = self.root.winfo_screenwidth()
+            sh = self.root.winfo_screenheight()
+            w = self.root.winfo_width()
+            y = max(0, min(y, sh - 80))
+            x = max(100 - w, min(x, sw - 100))
+        except Exception:
+            pass
+            
+        self.root.geometry(f"+{x}+{y}")
+        self._save_window_geometry()
+
+    def _drag_end(self, e: tk.Event) -> None:
+        pass
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 8-DIRECTIONAL RESIZING CONTROLLERS
+    # ─────────────────────────────────────────────────────────────────────────
+    def _on_root_motion(self, e: tk.Event) -> None:
+        if self._resize_active:
+            return
+        try:
+            rx = e.x_root - self.root.winfo_rootx()
+            ry = e.y_root - self.root.winfo_rooty()
+            w = self.root.winfo_width()
+            h = self.root.winfo_height()
+            
+            border = 6
+            n = ry < border
+            s = ry > h - border
+            w_edge = rx < border
+            e_edge = rx > w - border
+            
+            direction = ""
+            if n: direction += "n"
+            elif s: direction += "s"
+            if w_edge: direction += "w"
+            elif e_edge: direction += "e"
+            
+            self._resize_dir = direction
+            
+            if direction in ("nw", "se"):
+                cursor = "size_nw_se"
+            elif direction in ("ne", "sw"):
+                cursor = "size_ne_sw"
+            elif direction in ("n", "s"):
+                cursor = "sb_v_double_arrow"
+            elif direction in ("w", "e"):
+                cursor = "sb_h_double_arrow"
+            else:
+                cursor = ""
+                
+            self.root.config(cursor=cursor)
+        except Exception:
+            pass
+
+    def _on_root_click(self, e: tk.Event) -> None:
+        if self._resize_dir:
+            self._resize_active = True
+            self._resize_start_w = self.root.winfo_width()
+            self._resize_start_h = self.root.winfo_height()
+            self._resize_start_x = e.x_root
+            self._resize_start_y = e.y_root
+            self._resize_start_wx = self.root.winfo_x()
+            self._resize_start_wy = self.root.winfo_y()
+
+    def _on_root_drag(self, e: tk.Event) -> None:
+        if not self._resize_active or not self._resize_dir:
+            return
+        try:
+            dx = e.x_root - self._resize_start_x
+            dy = e.y_root - self._resize_start_y
+            
+            nw = self._resize_start_w
+            nh = self._resize_start_h
+            nx = self._resize_start_wx
+            ny = self._resize_start_wy
+            
+            if "e" in self._resize_dir:
+                nw = max(WT.MIN_W, self._resize_start_w + dx)
+            elif "w" in self._resize_dir:
+                val = self._resize_start_w - dx
+                if val >= WT.MIN_W:
+                    nw = val
+                    nx = self._resize_start_wx + dx
+                    
+            if "s" in self._resize_dir:
+                nh = max(WT.MIN_H, self._resize_start_h + dy)
+            elif "n" in self._resize_dir:
+                val = self._resize_start_h - dy
+                if val >= WT.MIN_H:
+                    nh = val
+                    ny = self._resize_start_wy + dy
+                    
+            self.root.geometry(f"{nw}x{nh}+{nx}+{ny}")
+            self._save_window_geometry()
+        except Exception:
+            pass
+
+    def _on_root_release(self, e: tk.Event) -> None:
+        self._resize_active = False
+        self._resize_dir = ""
+        try:
+            self.root.config(cursor="")
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
-    HELIOSPopup().run()
+    HELIOSApp()

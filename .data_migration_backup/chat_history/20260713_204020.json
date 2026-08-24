@@ -1,0 +1,22 @@
+[
+  {
+    "role": "user",
+    "content": "Hey",
+    "time": "2026-07-13T20:41:05.918760"
+  },
+  {
+    "role": "helios",
+    "content": "Error executing 'general_chat': Ollama is not running or connection refused.\nDetails: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=11434): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it\"))\nFix: Open a new terminal and run:  ollama serve",
+    "time": "2026-07-13T20:41:41.398916"
+  },
+  {
+    "role": "user",
+    "content": "run ollama run in terminal at command prompt",
+    "time": "2026-07-13T20:42:36.905706"
+  },
+  {
+    "role": "helios",
+    "content": "Error executing 'general_chat': Ollama is not running or connection refused.\nDetails: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=11434): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it\"))\nFix: Open a new terminal and run:  ollama serve",
+    "time": "2026-07-13T20:43:09.301971"
+  }
+]

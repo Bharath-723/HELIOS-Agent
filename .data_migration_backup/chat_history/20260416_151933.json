@@ -1,0 +1,132 @@
+[
+  {
+    "role": "user",
+    "content": "order a pizza for me",
+    "time": "2026-04-16T15:20:31.132541"
+  },
+  {
+    "role": "helios",
+    "content": "Sure! Where should I order pizza from?\nReply with: Swiggy or Zomato",
+    "time": "2026-04-16T15:20:41.247344"
+  },
+  {
+    "role": "user",
+    "content": "swiggy",
+    "time": "2026-04-16T15:20:50.875345"
+  },
+  {
+    "role": "helios",
+    "content": "Got it — Swiggy.\nWhat's your delivery location? (area name or full address)",
+    "time": "2026-04-16T15:20:50.891103"
+  },
+  {
+    "role": "user",
+    "content": "hyderabad",
+    "time": "2026-04-16T15:21:01.333728"
+  },
+  {
+    "role": "helios",
+    "content": "Delivery to: hyderabad\nWhat's your budget? (e.g. 200, 500, or type 'any' for no limit)",
+    "time": "2026-04-16T15:21:01.365224"
+  },
+  {
+    "role": "user",
+    "content": "200",
+    "time": "2026-04-16T15:21:03.986556"
+  },
+  {
+    "role": "helios",
+    "content": "Opening Swiggy to order: pizza\n  Location: hyderabad\n  Budget:   200\n\nThe Swiggy search page is open in your browser.\nSelect your restaurant, add to cart, and place the order!",
+    "time": "2026-04-16T15:21:04.104704"
+  },
+  {
+    "role": "user",
+    "content": "turn on bluetooth",
+    "time": "2026-04-16T15:22:30.574750"
+  },
+  {
+    "role": "helios",
+    "content": "Bluetooth turned ON successfully.",
+    "time": "2026-04-16T15:22:38.050951"
+  },
+  {
+    "role": "user",
+    "content": "open youtube and search for lofi",
+    "time": "2026-04-16T15:22:59.217369"
+  },
+  {
+    "role": "helios",
+    "content": "Searching YouTube for: lofi",
+    "time": "2026-04-16T15:23:05.800240"
+  },
+  {
+    "role": "user",
+    "content": "write a letter to principal for taking 2 days leave",
+    "time": "2026-04-16T15:24:00.124736"
+  },
+  {
+    "role": "helios",
+    "content": "Okay, here’s a draft of a letter to the principal requesting two days of leave:\n\n[Your Name]\n[Your Class/Roll Number]\n[Date]\n\nThe Principal\n[School Name]\n[School Address]\n\nSubject: Leave Application\n\nRespected Madam/Sir,\n\nI am writing to request a leave of absence from school for two days, from [Start Date] to [End Date]. [Briefly state reason for leave – e.g., due to a family matter/personal reasons].\n\nI will ensure that I catch up on any missed work and assignments upon my return.\n\nThank you for your consideration.\n\nSincerely,\n[Your Name]\n\n\nWould you like me to format this letter for printing or save it to a file?\n(via gemma3)",
+    "time": "2026-04-16T15:24:14.144366"
+  },
+  {
+    "role": "user",
+    "content": "compose to principal@gmail.com",
+    "time": "2026-04-16T15:25:34.704062"
+  },
+  {
+    "role": "helios",
+    "content": "Gmail compose opened!\n  To:      principal@gmail.com\n  Subject: Leave Application\n  Body:    Okay, here’s a draft of a letter to the principal requesting two days of leave: ...\nReview and click Send in your browser.",
+    "time": "2026-04-16T15:25:45.675057"
+  },
+  {
+    "role": "user",
+    "content": "compose to rushandanish99@gmail.com",
+    "time": "2026-04-16T15:27:24.644384"
+  },
+  {
+    "role": "helios",
+    "content": "Gmail compose opened!\n  To:      rushandanish99@gmail.com\nReview and click Send in your browser.",
+    "time": "2026-04-16T15:27:31.902006"
+  },
+  {
+    "role": "user",
+    "content": "move file called \"venu.txt\" from downloads to desktop",
+    "time": "2026-04-16T15:30:24.899004"
+  },
+  {
+    "role": "helios",
+    "content": "Moved: venu.txt\n  From: C:\\Users\\bhara\\Downloads\n  To:   C:\\Users\\bhara\\Desktop",
+    "time": "2026-04-16T15:30:32.138481"
+  },
+  {
+    "role": "user",
+    "content": "can you chnage my desktop wallpaper",
+    "time": "2026-04-16T15:31:25.078008"
+  },
+  {
+    "role": "user",
+    "content": "hello",
+    "time": "2026-04-16T15:32:23.983557"
+  },
+  {
+    "role": "helios",
+    "content": "Hello there! How can I help you today? Would you like me to search for a wallpaper you might like?\n(via gemma3)",
+    "time": "2026-04-16T15:32:34.249467"
+  },
+  {
+    "role": "user",
+    "content": "no,change my wallpaper to deafult",
+    "time": "2026-04-16T15:33:02.867932"
+  },
+  {
+    "role": "user",
+    "content": "change my desktop wall paper to deafalut",
+    "time": "2026-04-16T15:33:40.596195"
+  },
+  {
+    "role": "helios",
+    "content": "Opened display Settings.",
+    "time": "2026-04-16T15:33:54.730243"
+  }
+]
