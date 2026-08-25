@@ -245,8 +245,15 @@ class ChatView:
                                lambda: self._copy_text(text), bg=C.BG_S)
         self._make_action_btn(action_bar, I.EDIT   + " Edit",
                                lambda: self._edit_user_text(text), bg=C.BG_S)
-        self._make_action_btn(action_bar, I.DELETE + " Delete",
-                               lambda: outer.destroy(), bg=C.BG_S)
+        def _delete_card():
+            outer.destroy()
+            self.hide_thinking()
+            try:
+                self.frame.winfo_toplevel().event_generate("<<MessageDeleted>>")
+            except Exception:
+                pass
+
+        self._make_action_btn(action_bar, I.DELETE + " Delete", _delete_card, bg=C.BG_S)
 
         def _on_hover_in(e=None):
             try:
@@ -331,7 +338,7 @@ class ChatView:
         hdr = tk.Frame(body, bg=C.DEPTH_2)
         hdr.pack(fill="x", padx=12, pady=(8, 4))
 
-        lbl_h = tk.Label(hdr, text="H  HELIOS",
+        lbl_h = tk.Label(hdr, text="✦ HELIOS",
                           font=(F._PRIMARY, F.SM, "bold"),
                           bg=C.DEPTH_2, fg=C.FG_1)
         lbl_h.pack(side="left")
@@ -359,15 +366,14 @@ class ChatView:
                        padx=12, pady=4,
                        wrap="word", width=msg_w, height=lines,
                        cursor="xterm")
-        txt.insert("1.0", text)
-        txt.configure(state="disabled")
+        self._render_markdown_content(txt, text)
         txt.pack(fill="x")
 
         # ── Footer ────────────────────────────────────────────────────────
         footer = tk.Frame(body, bg=C.DEPTH_2)
         footer.pack(fill="x", padx=12, pady=(2, 6))
 
-        meta_text = f"{I.MODELS} {model_name}" if model_name else ""
+        meta_text = f"● {model_name}" if model_name else ""
         lbl_m = tk.Label(footer, text=meta_text,
                           font=(F._FALLBACK, F.XS),
                           bg=C.DEPTH_2, fg=C.FG_3)
@@ -489,18 +495,62 @@ class ChatView:
         self._scroll_to_bottom()
         return card, txt, lbl_m
 
+    def _render_markdown_content(self, txt_widget: tk.Text, raw_text: str) -> None:
+        txt_widget.configure(state="normal")
+        txt_widget.delete("1.0", tk.END)
+
+        txt_widget.tag_configure("bold", font=(F._FALLBACK, F.MD, "bold"), foreground=C.FG_1)
+        txt_widget.tag_configure("italic", font=(F._FALLBACK, F.MD, "italic"), foreground=C.FG_2)
+        txt_widget.tag_configure("underline", font=(F._FALLBACK, F.MD, "underline"), foreground=C.FG_1)
+        txt_widget.tag_configure("bullet", lmargin1=12, lmargin2=24)
+
+        clean_text = raw_text
+        if "(via " in clean_text and clean_text.rstrip().endswith(")"):
+            clean_text = clean_text.rstrip().rsplit("(via ", 1)[0].rstrip()
+
+        lines = clean_text.splitlines()
+        import re
+        for line_idx, line in enumerate(lines):
+            if line_idx > 0:
+                txt_widget.insert(tk.END, "\n")
+
+            is_bullet = False
+            clean_line = line
+            strip_line = clean_line.strip()
+            if strip_line.startswith("* ") or strip_line.startswith("- ") or strip_line.startswith("• "):
+                is_bullet = True
+                content_part = strip_line[2:].strip()
+                clean_line = f"  • {content_part}"
+
+            tokens = re.split(r'(\*\*.*?\*\*|\*.*?\*|<u>.*?</u>)', clean_line)
+            for token in tokens:
+                if not token:
+                    continue
+                if token.startswith("**") and token.endswith("**") and len(token) >= 4:
+                    tags = ("bold", "bullet") if is_bullet else ("bold",)
+                    txt_widget.insert(tk.END, token[2:-2], tags)
+                elif token.startswith("*") and token.endswith("*") and len(token) >= 2 and not token.startswith("**"):
+                    tags = ("italic", "bullet") if is_bullet else ("italic",)
+                    txt_widget.insert(tk.END, token[1:-1], tags)
+                elif token.startswith("<u>") and token.endswith("</u>") and len(token) >= 7:
+                    tags = ("underline", "bullet") if is_bullet else ("underline",)
+                    txt_widget.insert(tk.END, token[3:-4], tags)
+                else:
+                    tags = ("bullet",) if is_bullet else ()
+                    txt_widget.insert(tk.END, token, tags)
+
+        txt_widget.configure(state="disabled")
+
     def update_streaming_content(self, txt: tk.Text, lbl_m: tk.Label,
                                   text: str, metadata: dict = None) -> None:
         msg_w = self._get_msg_width()
-        txt.configure(state="normal")
-        txt.delete("1.0", tk.END)
-        txt.insert("1.0", text)
+        self._render_markdown_content(txt, text)
         lines = self._estimate_lines(text, msg_w)
         txt.configure(height=lines, state="disabled")
 
         if metadata:
             model = metadata.get("model", "")
-            meta_txt = f"{I.MODELS} {model}" if model else ""
+            meta_txt = f"● {model}" if model else ""
             lbl_m.configure(text=meta_txt)
         self._scroll_to_bottom()
 
@@ -677,7 +727,12 @@ class ChatView:
         self.add_system_notice("Copied to clipboard.")
 
     def _edit_user_text(self, text: str) -> None:
-        self.frame.winfo_toplevel().event_generate("<<EditUserText>>", data=text)
+        self._last_edit_text = text
+        try:
+            self._copy_text(text)
+        except Exception:
+            pass
+        self.frame.winfo_toplevel().event_generate("<<EditUserText>>")
 
     def _save_note(self, text: str) -> None:
         self.frame.winfo_toplevel().event_generate("<<SaveNote>>", data=text)

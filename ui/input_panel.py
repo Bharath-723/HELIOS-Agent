@@ -227,7 +227,7 @@ class InputPanel:
         self._dropdown_screen_lbl = tk.Label(
             screen_row,
             text=f"●  SCREEN CONTEXT: {'ON' if self._screen_context_enabled else 'OFF'}",
-            font=(F._PRIMARY, F.XS, "bold"),
+            font=(F._PRIMARY, 8, "bold"),
             bg=C.GLASS_3,
             fg=C.OK if self._screen_context_enabled else C.FG_3,
             anchor="w"
@@ -236,10 +236,11 @@ class InputPanel:
 
         dropdown_toggle_btn = tk.Label(
             screen_row,
-            text="[ TOGGLE ]",
-            font=(F._PRIMARY, F.XS, "bold"),
-            bg=C.GLASS_3,
-            fg=C.BLUE_L if self._screen_context_enabled else C.FG_2,
+            text="[ ON ]" if self._screen_context_enabled else "[ OFF ]",
+            font=(F._PRIMARY, 8, "bold"),
+            bg=C.OK if self._screen_context_enabled else C.GLASS_4,
+            fg="#FFFFFF" if self._screen_context_enabled else C.FG_3,
+            padx=6, pady=2,
             anchor="e"
         )
         dropdown_toggle_btn.pack(side="right")
@@ -252,7 +253,9 @@ class InputPanel:
                     fg=C.OK if self._screen_context_enabled else C.FG_3
                 )
                 dropdown_toggle_btn.configure(
-                    fg=C.BLUE_L if self._screen_context_enabled else C.FG_2
+                    text="[ ON ]" if self._screen_context_enabled else "[ OFF ]",
+                    bg=C.OK if self._screen_context_enabled else C.GLASS_4,
+                    fg="#FFFFFF" if self._screen_context_enabled else C.FG_3
                 )
                 screen_row.configure(
                     highlightbackground=C.OK if self._screen_context_enabled else C.GLASS_BD_4
@@ -347,10 +350,10 @@ class InputPanel:
             llm = HybridLLM()
             st = llm.status()
             avail = st.get("available_models", [])
-            local_models = [m for m in avail if not (m.startswith("gemini") or m.startswith("gpt"))]
+            local_models = [m for m in avail if not (m.startswith("gemini") or m.startswith("gpt") or m.startswith("groq"))]
             if not local_models:
                 local_models = ["gemma3"]
-            cloud_models = [m for m in avail if (m.startswith("gemini") or m.startswith("gpt"))]
+            cloud_models = [m for m in avail if (m.startswith("gemini") or m.startswith("gpt") or m.startswith("groq"))]
         except Exception:
             pass
 
@@ -464,12 +467,8 @@ class InputPanel:
             text = result.text.strip()
             self.set_text(text)
             if self._on_status:
-                self._on_status(f"🎙 Heard: \"{text}\" ({result.engine})")
-            
-            # Pass transcript to handler or submit to HELIOS pipeline
-            if self._on_voice_result:
-                self._on_voice_result(text)
-            self._submit()
+                self._on_status(f"🎙 Voice transcript added to search bar. Edit or click Send.")
+            self.entry.focus_set()
         else:
             err = result.error.splitlines()[0] if result.error else "No speech detected"
             if self._on_status:
@@ -498,21 +497,35 @@ class InputPanel:
             self._attach_frame.pack_forget()
             return
 
-        self._attach_frame.pack(fill="x", side="top", before=self.row)
+        self._attach_frame.pack(fill="x", side="top", before=self.input_row)
+        self._chip_images = []
 
         for path_str in self._attached_files:
             p = Path(path_str)
             is_img = p.suffix.lower() in (".png", ".jpg", ".jpeg", ".bmp", ".webp")
-            icon = "📷" if is_img else "📎"
 
             chip = tk.Frame(
-                self._attach_frame, bg=C.GLASS_4, padx=8, pady=4,
+                self._attach_frame, bg=C.GLASS_4, padx=6, pady=3,
                 highlightthickness=1, highlightbackground=C.BLUE
             )
             chip.pack(side="left", padx=4, pady=2)
 
+            if is_img:
+                try:
+                    from PIL import Image, ImageTk
+                    im = Image.open(path_str)
+                    im.thumbnail((28, 28))
+                    imgtk = ImageTk.PhotoImage(im)
+                    self._chip_images.append(imgtk)
+                    img_lbl = tk.Label(chip, image=imgtk, bg=C.GLASS_4)
+                    img_lbl.pack(side="left", padx=(0, 4))
+                except Exception:
+                    tk.Label(chip, text="📷", bg=C.GLASS_4, fg=C.FG_1).pack(side="left", padx=(0, 4))
+            else:
+                tk.Label(chip, text="📎", bg=C.GLASS_4, fg=C.FG_1).pack(side="left", padx=(0, 4))
+
             tk.Label(
-                chip, text=f"{icon} {p.name[:20]}",
+                chip, text=f"{p.name[:18]}",
                 font=(F._FALLBACK, F.XS, "bold"),
                 bg=C.GLASS_4, fg=C.FG_1
             ).pack(side="left", padx=(0, 6))

@@ -146,6 +146,7 @@ class HELIOSApp:
         # Custom virtual events
         self.root.bind("<<LoadSession>>", lambda e: self._on_load_session(self._get_clipboard_text()))
         self.root.bind("<<EditUserText>>", lambda e: self._edit_command_entry(e))
+        self.root.bind("<<MessageDeleted>>", lambda e: self._on_message_deleted())
         self.root.bind("<<SaveNote>>", lambda e: self._save_agent_note(e))
         self.root.bind("<<Regenerate>>", lambda e: self._regenerate_last())
 
@@ -744,9 +745,9 @@ class HELIOSApp:
 
             elapsed_ms = (time.time() - time_started) * 1000
 
-            # Extract actual model used from response text or LLM engine state
-            model_used = None
-            if "(via " in response_text and response_text.rstrip().endswith(")"):
+            # Extract actual model used from agent execution
+            model_used = getattr(self.agent, "last_used_model", None)
+            if not model_used and "(via " in response_text and response_text.rstrip().endswith(")"):
                 try:
                     via_part = response_text.rstrip().rsplit("(via ", 1)[1].rstrip(")")
                     if via_part:
@@ -980,8 +981,15 @@ class HELIOSApp:
         self.inp._pick_files()
 
     def _edit_command_entry(self, e) -> None:
-        txt = self._get_clipboard_text()
-        self._insert_home_action(txt)
+        txt = getattr(self.chat, "_last_edit_text", None) or self._get_clipboard_text()
+        if txt and self.inp:
+            self.inp.set_text(txt)
+
+    def _on_message_deleted(self) -> None:
+        if self.chat:
+            self.chat.hide_thinking()
+        if hasattr(self, "status_bar") and self.status_bar:
+            self.status_bar.update(state="Ready")
 
     def _save_agent_note(self, e) -> None:
         text = self._get_clipboard_text()
@@ -1320,8 +1328,20 @@ class HELIOSApp:
                         import PyPDF2
                         reader = PyPDF2.PdfReader(str(path))
                         content = "\n".join(page.extract_text() or "" for page in reader.pages)
-                    except Exception as e:
-                        content = f"Could not read PDF content: {e}"
+                    except Exception:
+                        try:
+                            # Stream decoding fallback for PDF files
+                            raw_bytes = path.read_bytes()
+                            import re
+                            text_blocks = re.findall(rb'\((.*?)\)\s*TJ|\((.*?)\)\s*Tj', raw_bytes)
+                            extracted = []
+                            for match in text_blocks:
+                                t = (match[0] or match[1]).decode("latin1", errors="ignore")
+                                if len(t) > 1:
+                                    extracted.append(t)
+                            content = " ".join(extracted)
+                        except Exception as e:
+                            content = f"Could not read PDF content: {e}"
 
             elif ext in {".txt", ".md", ".py", ".js", ".ts", ".html", ".css", ".json", ".csv", ".log"}:
                 try:

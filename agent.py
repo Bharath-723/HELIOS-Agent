@@ -190,6 +190,7 @@ class HELIOSAgent:
 
         # Screen Context Toggle State (Default: OFF)
         self._screen_context_enabled = False
+        self.last_used_model = "gemma3"
 
         log.info("HELIOS ready.")
 
@@ -1075,6 +1076,7 @@ class HELIOSAgent:
                 prompt=self._chat_prompt(p.get("message", raw)),
                 system=self._get_system_prompt())
             content = resp.content
+            self.last_used_model = resp.model
             if any(kw in raw.lower() for kw in
                    ("mail", "email", "letter", "compose", "write to", "draft")):
                 self._last_draft = content

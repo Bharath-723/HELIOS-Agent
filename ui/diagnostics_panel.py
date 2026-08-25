@@ -46,19 +46,34 @@ class DiagnosticsPanel:
 
         self._inner.bind("<Configure>", lambda e: self._update_canvas_window())
         self._canvas.bind("<Configure>", lambda e: self._update_canvas_window())
-        self._canvas.bind("<MouseWheel>", lambda e: self._canvas.yview_scroll(
-            int(-1*(e.delta/120)), "units"))
+        self.frame.bind("<Enter>", lambda e: self._bind_mousewheel_all(self._inner))
+        self._canvas.bind("<MouseWheel>", self._on_mousewheel)
 
         self._build()
         ThemeManager.add_listener(self._on_theme_changed)
 
+    def _on_mousewheel(self, event) -> None:
+        try:
+            self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        except Exception:
+            pass
+
+    def _bind_mousewheel_all(self, widget) -> None:
+        try:
+            widget.bind("<MouseWheel>", self._on_mousewheel, "+")
+            for child in widget.winfo_children():
+                self._bind_mousewheel_all(child)
+        except Exception:
+            pass
+
     def _update_canvas_window(self) -> None:
         try:
+            self.frame.update_idletasks()
             w = self._canvas.winfo_width()
-            h = self._inner.winfo_reqheight()
+            h = max(self._inner.winfo_reqheight(), self.frame.winfo_height())
             if w > 10 and h > 10:
-                self._canvas.itemconfig(self._win, width=w, height=h)
-                self._canvas.configure(scrollregion=(0, 0, w, h))
+                self._canvas.itemconfig(self._win, width=w)
+                self._canvas.configure(scrollregion=(0, 0, w, self._inner.winfo_reqheight()))
         except Exception:
             pass
 
@@ -88,8 +103,7 @@ class DiagnosticsPanel:
         row1.pack(fill="x", padx=pad, pady=(0, 14))
 
         self._agent_card = StatCard(row1, title="AGENT",
-                                    primary="●  IDLE", primary_label="Desktop Agent",
-                                    secondary="Ready",
+                                    primary="● IDLE", primary_label="Status",
                                     accent_color=C.STATE_IDLE)
         self._agent_card.pack(side="left", fill="both", expand=True, padx=(0, 6))
 

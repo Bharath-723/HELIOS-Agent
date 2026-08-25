@@ -24,6 +24,7 @@ class LLMProvider(Enum):
     LOCAL  = "local"
     GPT    = "gpt"
     GEMINI = "gemini"
+    GROQ   = "groq"
 
 
 @dataclass
@@ -59,7 +60,11 @@ class HybridLLM:
         self.gemini_key   = environment_manager.get("GEMINI_API_KEY", "")
         self.gemini_model = environment_manager.get("GEMINI_MODEL", "gemini-3.6-flash")
 
-        # Which cloud to use: "gemini" or "gpt"
+        # Groq Cloud
+        self.groq_key     = environment_manager.get("GROQ_API_KEY", "")
+        self.groq_model   = environment_manager.get("GROQ_MODEL", "groq/compound-mini")
+
+        # Which cloud to use: "gemini", "groq", or "gpt"
         self.cloud_provider = environment_manager.get("CLOUD_PROVIDER", "gemini").lower()
 
     # ── Runtime control ───────────────────────────────────────────────────
@@ -68,6 +73,10 @@ class HybridLLM:
         if m.startswith("gemini"):
             self.gemini_model = model
             self.cloud_provider = "gemini"
+            self.active_cloud_model = model
+        elif m.startswith("groq"):
+            self.groq_model = model
+            self.cloud_provider = "groq"
             self.active_cloud_model = model
         elif m.startswith("gpt"):
             self.openai_model = model
@@ -92,11 +101,47 @@ class HybridLLM:
         except Exception:
             pass
         cloud = []
-        if self._has_gemini_key():
-            cloud += ["gemini-3.6-flash", "gemini-3.5-flash"]
-        if self._has_openai_key():
-            cloud += ["gpt-4o-mini", "gpt-4o"]
+        if self._has_gemini_key() and self._test_gemini_working():
+            cloud += ["gemini-3.6-flash"]
+        if self._has_groq_key() and self._test_groq_working():
+            cloud += ["groq/compound-mini"]
+        if self._has_openai_key() and self._test_openai_working():
+            cloud += ["gpt-4o-mini"]
         return local + cloud
+
+    def _test_gemini_working(self) -> bool:
+        if not self._has_gemini_key():
+            return False
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={self.gemini_key}"
+            r = requests.post(url, json={"contents": [{"role": "user", "parts": [{"text": "ping"}]}]}, timeout=4)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+    def _test_groq_working(self) -> bool:
+        if not self._has_groq_key():
+            return False
+        try:
+            r = requests.get("https://api.groq.com/openai/v1/models",
+                             headers={"Authorization": f"Bearer {self.groq_key}"}, timeout=4)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+    def _test_openai_working(self) -> bool:
+        if not self._has_openai_key():
+            return False
+        try:
+            r = requests.get("https://api.openai.com/v1/models",
+                             headers={"Authorization": f"Bearer {self.openai_key}"}, timeout=4)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+    def _has_groq_key(self) -> bool:
+        k = self.groq_key
+        return bool(k and k.startswith("gsk_") and len(k) > 15)
 
     # ── Checks ────────────────────────────────────────────────────────────
     def _ollama_alive(self) -> bool:
@@ -304,12 +349,47 @@ class HybridLLM:
             latency_ms=(time.time() - t0) * 1000,
         )
 
+    # ── Groq inference ───────────────────────────────────────────────────
+    def _call_groq(self, prompt: str, system: str = "") -> LLMResponse:
+        if not self._has_groq_key():
+            raise RuntimeError("No Groq API key configured.")
+        t0 = time.time()
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
+        msgs = []
+        if system:
+            msgs.append({"role": "system", "content": system})
+        msgs.append({"role": "user", "content": prompt})
+
+        payload = {"model": self.groq_model, "messages": msgs}
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        if r.status_code != 200:
+            raise RuntimeError(f"Groq API error ({r.status_code}): {r.text}")
+        data = r.json()
+        content = data["choices"][0]["message"]["content"]
+        return LLMResponse(
+            content=content.strip(),
+            provider=LLMProvider.GROQ,
+            model=self.groq_model,
+            tokens_used=data.get("usage", {}).get("total_tokens", 0),
+            latency_ms=(time.time() - t0) * 1000,
+        )
+
     # ── Cloud dispatch ────────────────────────────────────────────────────
     def _call_cloud(self, prompt: str, system: str = "") -> LLMResponse:
-        if self.cloud_provider == "gemini":
+        if self.cloud_provider == "groq":
+            try:
+                return self._call_groq(prompt, system)
+            except Exception:
+                if self._has_gemini_key():
+                    return self._call_gemini(prompt, system)
+                raise
+        elif self.cloud_provider == "gemini":
             try:
                 return self._call_gemini(prompt, system)
             except Exception:
+                if self._has_groq_key():
+                    return self._call_groq(prompt, system)
                 if self._has_openai_key():
                     return self._call_gpt(prompt, system)
                 raise

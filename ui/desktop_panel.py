@@ -96,14 +96,14 @@ class DesktopPanel:
         row1.pack(fill="x", padx=pad, pady=(0, 14))
 
         self._agent_card = StatCard(row1, title="AGENT STATUS",
-                                    primary="● READY", primary_label="Desktop Controller",
+                                    primary="● READY", primary_label="Controller",
                                     secondary="Idle", secondary_label="State",
                                     accent_color=C.OK)
         self._agent_card.pack(side="left", fill="both", expand=True, padx=(0, 6))
 
         curr_app = _get_active_window_title()
-        self._app_card = StatCard(row1, title="ACTIVE APPLICATION",
-                                  primary=curr_app[:24], primary_label="Foreground Window",
+        self._app_card = StatCard(row1, title="ACTIVE APP",
+                                  primary=curr_app[:20], primary_label="Foreground",
                                   secondary="Local OS", secondary_label="Environment",
                                   accent_color=C.BLUE)
         self._app_card.pack(side="left", fill="both", expand=True)
@@ -113,12 +113,12 @@ class DesktopPanel:
         row2.pack(fill="x", padx=pad, pady=(0, 14))
 
         self._task_card = StatCard(row2, title="CURRENT TASK",
-                                   primary="No Active Task", primary_label="Task Description",
+                                   primary="No Active Task", primary_label="Task Details",
                                    accent_color=C.CYAN)
         self._task_card.pack(side="left", fill="both", expand=True, padx=(0, 6))
 
         self._action_card = StatCard(row2, title="CURRENT ACTION",
-                                     primary="Waiting", primary_label="Step Execution",
+                                     primary="Waiting", primary_label="Status",
                                      accent_color=C.WARN)
         self._action_card.pack(side="left", fill="both", expand=True)
 
@@ -126,13 +126,13 @@ class DesktopPanel:
         row3 = tk.Frame(self._inner, bg=C.BG_S)
         row3.pack(fill="x", padx=pad, pady=(0, 16))
 
-        self._browser_card = StatCard(row3, title="BROWSER & AUTOMATION",
-                                      primary="Ready", primary_label="Automation Service",
+        self._browser_card = StatCard(row3, title="BROWSER",
+                                      primary="Ready", primary_label="Browser Service",
                                       accent_color=C.BLUE)
         self._browser_card.pack(side="left", fill="both", expand=True, padx=(0, 6))
 
         self._model_card = StatCard(row3, title="ACTIVE MODEL",
-                                    primary="gemma3", primary_label="On-Device Intelligence",
+                                    primary="gemma3", primary_label="On-Device AI",
                                     secondary="● LOCAL", accent_color=C.OK)
         self._model_card.pack(side="left", fill="both", expand=True)
 

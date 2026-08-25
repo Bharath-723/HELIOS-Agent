@@ -60,9 +60,9 @@ class StatCard:
 
         # Primary metric
         self._primary_lbl = tk.Label(body, text=primary,
-                                     font=(F._PRIMARY, 22, "bold"),
+                                     font=(F._PRIMARY, 14, "bold"),
                                      bg=C.DEPTH_2, fg=C.FG_1,
-                                     anchor="w")
+                                     anchor="w", wraplength=140, justify="left")
         self._primary_lbl.pack(fill="x")
 
         if primary_label:
@@ -76,12 +76,12 @@ class StatCard:
 
         # Secondary metric (optional)
         if secondary:
-            tk.Frame(body, bg=C.DEPTH_BD_2, height=1).pack(fill="x", pady=(8, 0))
+            tk.Frame(body, bg=C.DEPTH_BD_2, height=1).pack(fill="x", pady=(6, 0))
             self._secondary_lbl = tk.Label(body, text=secondary,
-                                           font=(F._PRIMARY, 16, "bold"),
+                                           font=(F._PRIMARY, 13, "bold"),
                                            bg=C.DEPTH_2, fg=self._accent,
-                                           anchor="w")
-            self._secondary_lbl.pack(fill="x", pady=(6, 0))
+                                           anchor="w", wraplength=140, justify="left")
+            self._secondary_lbl.pack(fill="x", pady=(4, 0))
 
             if secondary_label:
                 self._secondary_sub = tk.Label(body, text=secondary_label,
