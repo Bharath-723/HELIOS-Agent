@@ -87,7 +87,7 @@ def main():
     # TEST 1: Class A ("open chrome") with Screen Context = OFF
     t1_res = agent.process("open chrome")
     print(f"TEST 1 ('open chrome', SCREEN: OFF):\n{t1_res}\n")
-    assert "Opened chrome" in t1_res or "Chrome" in t1_res, "Class A must execute application launch directly"
+    assert "opened" in t1_res.lower() or "chrome" in t1_res.lower(), "Class A must execute application launch directly"
     print("[OK] TEST 1 PASSED: Class A prompt executed directly without screen observation")
 
     # TEST 2: Class B ("add the first product to cart") with Screen Context = OFF

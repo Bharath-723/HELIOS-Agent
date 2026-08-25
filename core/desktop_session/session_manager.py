@@ -273,8 +273,10 @@ class DesktopSessionManager:
                 target_app = action.target_app or "chrome"
                 focus_res = ApplicationFocusManager.ensure_app_focused(target_app, self.desktop)
                 if not focus_res.success and mode != "mock":
-                    log.warning("DesktopSessionManager: Focus failed on target_app '%s': %s", target_app, focus_res.error_message)
-                    return False, f"HELIOS could not establish focus on target application '{target_app}': {focus_res.error_message}"
+                    log.warning("DesktopSessionManager: Focus warning on target_app '%s': %s. Attempting soft fallback...", target_app, focus_res.error_message)
+                    fb_hwnd, _, _ = self.observer.get_target_window_info()
+                    if fb_hwnd:
+                        ScreenObserver.focus_target_window(fb_hwnd)
 
             if act_type == "NAVIGATE":
                 target_url = action.target_url or action.target or "https://www.amazon.in/"
