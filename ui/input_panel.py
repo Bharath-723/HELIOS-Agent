@@ -11,6 +11,7 @@ Elevated command input dock with:
 from __future__ import annotations
 import threading
 import tkinter as tk
+from pathlib import Path
 from .theme import C, F, ThemeManager
 
 
@@ -22,17 +23,20 @@ class InputPanel:
                  on_voice_result: callable,
                  on_status: callable,
                  on_model_change: callable = None,
-                 on_auto_toggle: callable = None) -> None:
+                 on_auto_toggle: callable = None,
+                 on_screen_context_toggle: callable = None) -> None:
 
-        self._parent          = parent
-        self._on_send         = on_send
-        self._on_voice_result = on_voice_result
-        self._on_status       = on_status
-        self._on_model_change = on_model_change
-        self._on_auto_toggle  = on_auto_toggle
+        self._parent                  = parent
+        self._on_send                 = on_send
+        self._on_voice_result         = on_voice_result
+        self._on_status               = on_status
+        self._on_model_change         = on_model_change
+        self._on_auto_toggle          = on_auto_toggle
+        self._on_screen_context_toggle = on_screen_context_toggle
 
-        self._active_model  = "gemma3"
-        self._is_auto       = True
+        self._active_model           = "gemma3"
+        self._is_auto                = True
+        self._screen_context_enabled = False
         self._dropdown_win: tk.Frame | None = None
         self._attached_files: list[str] = []
 
@@ -64,11 +68,23 @@ class InputPanel:
         self._make_tool_btn(self.row, "+", self._pick_files, C.CYAN)
         self._make_tool_btn(self.row, "📷", self._trigger_camera, C.VIOLET)
 
-        # Right tools (packed right-to-left): Send (➤), Mic (🎤), Model Selector Pill
+        # Right tools (packed right-to-left): Send (➤), Mic (🎤), Screen Context Toggle, Model Selector Pill
         send_btn = self._make_send_button(self.row, cmd=self._submit)
         send_btn.pack(side="right", padx=(4, 0))
 
         self._mic_canvas = self._make_tool_btn(self.row, "🎤", self._trigger_voice, C.WARN, side="right")
+
+        self.screen_pill = tk.Frame(self.row, bg=C.GLASS_4, cursor="hand2", padx=2, pady=2,
+                                    highlightthickness=1, highlightbackground=C.GLASS_BD_4)
+        self.screen_pill.pack(side="right", padx=4)
+
+        self.screen_lbl = tk.Label(self.screen_pill, text="SCREEN: OFF",
+                                   font=(F._PRIMARY, F.XS, "bold"),
+                                   bg=C.GLASS_4, fg=C.FG_3, padx=6, pady=4)
+        self.screen_lbl.pack()
+
+        for w in (self.screen_pill, self.screen_lbl):
+            w.bind("<ButtonRelease-1>", lambda e: self._toggle_screen_context())
 
         self.model_pill = tk.Frame(self.row, bg=C.GLASS_4, cursor="hand2", padx=2, pady=2,
                                    highlightthickness=1, highlightbackground=C.GLASS_BD_4)
@@ -105,6 +121,29 @@ class InputPanel:
         self.entry.bind("<FocusOut>", self._on_entry_blur)
         self.entry.bind("<KeyRelease>", self._on_key_release)
         self.entry.bind("<Return>", lambda e: self._submit())
+
+    def is_screen_context_enabled(self) -> bool:
+        return self._screen_context_enabled
+
+    def set_screen_context_enabled(self, enabled: bool) -> None:
+        if self._screen_context_enabled != enabled:
+            self._toggle_screen_context()
+
+    def _toggle_screen_context(self) -> None:
+        self._screen_context_enabled = not self._screen_context_enabled
+        if self._screen_context_enabled:
+            self.screen_lbl.configure(text="SCREEN: ON", fg=C.OK)
+            self.screen_pill.configure(highlightbackground=C.OK)
+            if self._on_status:
+                self._on_status("Screen Context: ON (Visual screen observation authorized)")
+        else:
+            self.screen_lbl.configure(text="SCREEN: OFF", fg=C.FG_3)
+            self.screen_pill.configure(highlightbackground=C.GLASS_BD_4)
+            if self._on_status:
+                self._on_status("Screen Context: OFF")
+
+        if self._on_screen_context_toggle:
+            self._on_screen_context_toggle(self._screen_context_enabled)
 
     def _make_tool_btn(self, parent: tk.Widget, char: str, cmd: callable, fg_color: str, side: str = "left") -> tk.Canvas:
         cv = tk.Canvas(parent, width=32, height=32, bg=C.GLASS_3, highlightthickness=0, cursor="hand2")
@@ -213,11 +252,56 @@ class InputPanel:
         # Fetch models async
         threading.Thread(target=self._fetch_models, daemon=True).start()
 
-        # Position dropdown right above input dock
-        rx = self.frame.winfo_rootx() - self._parent.winfo_rootx() + 300
-        ry = self.frame.winfo_rooty() - self._parent.winfo_rooty() - 250
-        self._dropdown_win.place(x=max(10, rx), y=max(10, ry), width=250)
-        self._dropdown_win.lift()
+        self._reposition_model_dropdown()
+
+    def _reposition_model_dropdown(self) -> None:
+        if not self._dropdown_win or not self._parent:
+            return
+
+        try:
+            self._parent.update_idletasks()
+            root = self._parent.winfo_toplevel()
+            root_w = root.winfo_width()
+            root_h = root.winfo_height()
+            
+            root_x = root.winfo_rootx()
+            root_y = root.winfo_rooty()
+
+            pill_x = self.model_pill.winfo_rootx() - root_x
+            pill_y = self.model_pill.winfo_rooty() - root_y
+            pill_w = self.model_pill.winfo_width()
+            pill_h = self.model_pill.winfo_height()
+
+            parent_x = self._parent.winfo_rootx() - root_x
+            parent_y = self._parent.winfo_rooty() - root_y
+
+            # Width constrained to fit within root window boundaries
+            dw = min(270, max(180, root_w - 24))
+
+            # Align right edge of dropdown with right edge of model pill if possible
+            target_x_root = pill_x + pill_w - dw
+            clamped_x_root = max(12, min(target_x_root, root_w - dw - 12))
+            rel_x = clamped_x_root - parent_x
+
+            # Vertical placement
+            space_above = pill_y - 12
+            space_below = root_h - (pill_y + pill_h) - 12
+
+            dh_req = self._dropdown_win.winfo_reqheight()
+            if dh_req < 50:
+                dh_req = 220
+
+            if space_above >= min(dh_req, 180) or space_above >= space_below:
+                dh = min(dh_req, space_above)
+                rel_y = (pill_y - dh - 4) - parent_y
+            else:
+                dh = min(dh_req, space_below)
+                rel_y = (pill_y + pill_h + 4) - parent_y
+
+            self._dropdown_win.place(x=rel_x, y=rel_y, width=dw)
+            self._dropdown_win.lift()
+        except Exception:
+            pass
 
     def _fetch_models(self) -> None:
         local_models = ["gemma3"]
@@ -268,6 +352,7 @@ class InputPanel:
             else:
                 tk.Label(self.cloud_container, text="No cloud provider is currently configured",
                          font=(F._FALLBACK, F.XS), bg=C.GLASS_4, fg=C.FG_3, anchor="w", padx=8, pady=4).pack(fill="x")
+            self._reposition_model_dropdown()
 
         self.frame.after(0, _update_ui)
 

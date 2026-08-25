@@ -188,9 +188,21 @@ class HELIOSAgent:
         self._ui_notify_cb = None
         self.scheduler.set_notify_callback(self._on_reminder)
 
+        # Screen Context Toggle State (Default: OFF)
+        self._screen_context_enabled = False
+
         log.info("HELIOS ready.")
 
     # ── External wiring ───────────────────────────────────────────────────────
+    def set_screen_context_enabled(self, enabled: bool) -> None:
+        """User explicit Screen Context Toggle (OFF / ON)."""
+        self._screen_context_enabled = bool(enabled)
+        log.info("HELIOSAgent: Screen context toggle set to %s", self._screen_context_enabled)
+        if not self._screen_context_enabled:
+            # Immediately terminate persistent desktop session & clear frame buffers
+            if hasattr(self, "session_manager") and self.session_manager:
+                self.session_manager.end_session(reason="Screen Context disabled by user")
+
     def set_ui_notify(self, cb):
         """Called by helios_popup to push reminders into the chat window."""
         self._ui_notify_cb = cb
@@ -318,12 +330,35 @@ class HELIOSAgent:
         _is_comm = any(re.search(r'\b' + re.escape(v) + r'\b', lower_raw) for v in ("pay", "buy", "purchase", "checkout")) or any(kw in lower_raw for kw in _COMMERCE_INDICATORS)
         _is_pure_info = lower_raw.startswith("what is the price") or "previous payments" in lower_raw or "payment history" in lower_raw
 
-        # Guard 0.58: Persistent Screen-Aware Desktop Session Guard
+        # Class B Visual / Screen-Dependent Interaction Keywords
+        _CLASS_B_KEYWORDS = (
+            "select the first", "click the first", "choose the first", "choose first", "click first", "select first",
+            "add the first product", "add first product", "add to cart", "click add to cart", "add the product to cart",
+            "open cart", "open the cart", "click checkout", "click the checkout button",
+            "click the button", "click button on screen", "select option", "click option"
+        )
+        _is_class_b = any(kw in lower_raw for kw in _CLASS_B_KEYWORDS)
+
+        # Class A System / Application Launch & Control Keywords (No screen observation required)
+        _is_class_a = any(lower_raw.startswith(kw) for kw in (
+            "open chrome", "launch chrome", "open settings", "open display", "open notepad",
+            "open calculator", "launch vs code", "open vscode", "open explorer", "close chrome",
+            "kill notepad", "open bluetooth", "open wifi"
+        ))
+
+        # Check Class B requests when Screen Context is OFF
+        if _is_class_b and not self._screen_context_enabled:
+            log.info("Class B visual interaction requested while Screen Context is OFF '%s'", text)
+            result = "Screen Context is required for this visual interaction.\nEnable it beside the model selector and retry."
+            self.history.add("helios", result)
+            return result
+
+        # Guard 0.58: Persistent Screen-Aware Desktop Session Guard (only for active session or authorized Class B)
         from core.desktop_session import TaskContinuityEngine, DesktopSessionState
-        _is_desktop_cmd = any(lower_raw.startswith(kw) for kw in ("open settings", "search for ", "open display", "stop session", "end session", "cancel task", "quit session", "end task", "open amazon"))
+        _is_session_term = TaskContinuityEngine.is_termination_request(text)
         _in_active_session = self.session_manager.get_current_context().session_state in (DesktopSessionState.WAITING_FOR_USER, DesktopSessionState.ACTIVE)
 
-        if TaskContinuityEngine.is_termination_request(text) or (_in_active_session and not _is_comm) or (_is_desktop_cmd and not _is_comm):
+        if (_is_session_term or (_in_active_session and self._screen_context_enabled and not _is_comm) or (_is_class_b and self._screen_context_enabled and not _is_comm)) and not _is_class_a:
             log.info("Pre-routing guard: Desktop session instruction detected '%s'", text)
             sess_res = self.session_manager.process_instruction(text)
 

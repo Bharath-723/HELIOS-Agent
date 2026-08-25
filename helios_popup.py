@@ -523,9 +523,14 @@ class HELIOSApp:
             on_voice_result = self._on_voice_result,
             on_status       = self._on_status_msg,
             on_model_change = self._on_model_select,
-            on_auto_toggle  = self._toggle_auto_route
+            on_auto_toggle  = self._toggle_auto_route,
+            on_screen_context_toggle = self._on_screen_context_toggle
         )
         self.inp.frame.pack(side="bottom", fill="x")
+
+    def _on_screen_context_toggle(self, enabled: bool) -> None:
+        if hasattr(self, "agent") and self.agent:
+            self.agent.set_screen_context_enabled(enabled)
 
     def _build_status_bar(self) -> None:
         self.status_bar = StatusBar(self.foreground_layer)
