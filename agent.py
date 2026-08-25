@@ -335,9 +335,11 @@ class HELIOSAgent:
             "select the first", "click the first", "choose the first", "choose first", "click first", "select first",
             "add the first product", "add first product", "add to cart", "click add to cart", "add the product to cart",
             "open cart", "open the cart", "click checkout", "click the checkout button",
-            "click the button", "click button on screen", "select option", "click option"
+            "click the button", "click button on screen", "select option", "click option",
+            "on the shorts", "on shorts", "click shorts", "click on", "clcikn on", "clcikn", "clik on"
         )
-        _is_class_b = any(kw in lower_raw for kw in _CLASS_B_KEYWORDS)
+        _is_click_action = bool(re.search(r'\b(click|clcik|clcikn|clik|tap|press|select|choose)\b', lower_raw))
+        _is_class_b = any(kw in lower_raw for kw in _CLASS_B_KEYWORDS) or (_is_click_action and not lower_raw.startswith("http"))
 
         # Class A System / Application Launch & Control Keywords (No screen observation required)
         _is_class_a = any(lower_raw.startswith(kw) for kw in (

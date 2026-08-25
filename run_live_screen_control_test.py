@@ -106,6 +106,13 @@ def main():
     assert "Screen Context is required" not in t3_res, "Class B with SCREEN ON must allow execution"
     print("[OK] TEST 3 PASSED: Class B prompt with Screen Context ON authorized execution")
 
+    # TEST 4: Class B screen click target ("clcikn on the shorts") with SCREEN: ON
+    t4_res = agent.process("clcikn on the shorts")
+    print(f"TEST 4 ('clcikn on the shorts', SCREEN: ON):\n{t4_res[:200]}...\n")
+    assert "cannot directly interact with YouTube" not in t4_res, "Must not return text LLM refusal"
+    assert "Desktop Agent Session" in t4_res or "CLICK" in t4_res, "Must route to desktop agent session execution"
+    print("[OK] TEST 4 PASSED: 'clcikn on the shorts' executed via desktop agent vision session without LLM refusal")
+
     # TEST 5: Toggle Screen Context back to OFF
     agent.set_screen_context_enabled(False)
     assert agent._screen_context_enabled == False, "Screen Context must be OFF after disabling"

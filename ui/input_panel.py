@@ -61,46 +61,17 @@ class InputPanel:
         self._attach_frame = tk.Frame(self.dock, bg=C.GLASS_3, padx=8, pady=2)
         # Note: packed dynamically when attachments exist
 
-        self.row = tk.Frame(self.dock, bg=C.GLASS_3, padx=8, pady=6)
-        self.row.pack(fill="x")
+        # ── TOP ROW: Full-Width Command / Search Entry Bar ───────────────────────────
+        self.input_row = tk.Frame(self.dock, bg=C.GLASS_3, padx=8, pady=4)
+        self.input_row.pack(fill="x")
 
-        # Left tools: Attach (+), Camera (📷)
-        self._make_tool_btn(self.row, "+", self._pick_files, C.CYAN)
-        self._make_tool_btn(self.row, "📷", self._trigger_camera, C.VIOLET)
+        # Send Button (packed right on Top Row)
+        send_btn = self._make_send_button(self.input_row, cmd=self._submit)
+        send_btn.pack(side="right", padx=4)
 
-        # Right tools (packed right-to-left): Send (➤), Mic (🎤), Screen Context Toggle, Model Selector Pill
-        send_btn = self._make_send_button(self.row, cmd=self._submit)
-        send_btn.pack(side="right", padx=(4, 0))
-
-        self._mic_canvas = self._make_tool_btn(self.row, "🎤", self._trigger_voice, C.WARN, side="right")
-
-        self.screen_pill = tk.Frame(self.row, bg=C.GLASS_4, cursor="hand2", padx=2, pady=2,
-                                    highlightthickness=1, highlightbackground=C.GLASS_BD_4)
-        self.screen_pill.pack(side="right", padx=4)
-
-        self.screen_lbl = tk.Label(self.screen_pill, text="SCREEN: OFF",
-                                   font=(F._PRIMARY, F.XS, "bold"),
-                                   bg=C.GLASS_4, fg=C.FG_3, padx=6, pady=4)
-        self.screen_lbl.pack()
-
-        for w in (self.screen_pill, self.screen_lbl):
-            w.bind("<ButtonRelease-1>", lambda e: self._toggle_screen_context())
-
-        self.model_pill = tk.Frame(self.row, bg=C.GLASS_4, cursor="hand2", padx=2, pady=2,
-                                   highlightthickness=1, highlightbackground=C.GLASS_BD_4)
-        self.model_pill.pack(side="right", padx=4)
-
-        self.model_lbl = tk.Label(self.model_pill, text="MODEL: AUTO ▼",
-                                  font=(F._PRIMARY, F.XS, "bold"),
-                                  bg=C.GLASS_4, fg=C.BLUE_L, padx=6, pady=4)
-        self.model_lbl.pack()
-
-        for w in (self.model_pill, self.model_lbl):
-            w.bind("<ButtonRelease-1>", lambda e: self._toggle_model_dropdown())
-
-        # Center Command Entry container (expands to fill remaining space)
-        self.entry_container = tk.Frame(self.row, bg=C.GLASS_1, highlightthickness=1, highlightbackground=C.BORDER)
-        self.entry_container.pack(side="left", fill="x", expand=True, padx=6)
+        # Search Entry Container (expands across full top width)
+        self.entry_container = tk.Frame(self.input_row, bg=C.GLASS_1, highlightthickness=1, highlightbackground=C.BORDER)
+        self.entry_container.pack(side="left", fill="x", expand=True)
 
         # Command Entry (strictly EMPTY — no placeholder string inserted)
         self.entry = tk.Entry(self.entry_container, font=(F._FALLBACK, F.MD),
@@ -122,6 +93,30 @@ class InputPanel:
         self.entry.bind("<KeyRelease>", self._on_key_release)
         self.entry.bind("<Return>", lambda e: self._submit())
 
+        # ── BOTTOM ROW: Tool Controls (+, 📷, MODEL: AUTO ▼, 🎤) ─────────────────────
+        self.tool_row = tk.Frame(self.dock, bg=C.GLASS_3, padx=8, pady=4)
+        self.tool_row.pack(fill="x")
+
+        # Left tools: Attach (+), Camera (📷)
+        self._make_tool_btn(self.tool_row, "+", self._pick_files, C.CYAN, side="left")
+        self._make_tool_btn(self.tool_row, "📷", self._trigger_camera, C.VIOLET, side="left")
+
+        # Model Selector Pill (center/left)
+        self.model_pill = tk.Frame(self.tool_row, bg=C.GLASS_4, cursor="hand2", padx=2, pady=2,
+                                   highlightthickness=1, highlightbackground=C.GLASS_BD_4)
+        self.model_pill.pack(side="left", padx=6)
+
+        self.model_lbl = tk.Label(self.model_pill, text="MODEL: AUTO ▼",
+                                  font=(F._PRIMARY, F.XS, "bold"),
+                                  bg=C.GLASS_4, fg=C.BLUE_L, padx=6, pady=4)
+        self.model_lbl.pack()
+
+        for w in (self.model_pill, self.model_lbl):
+            w.bind("<ButtonRelease-1>", lambda e: self._toggle_model_dropdown())
+
+        # Mic Button (🎤) (packed right on Bottom Row)
+        self._mic_canvas = self._make_tool_btn(self.tool_row, "🎤", self._trigger_voice, C.WARN, side="right")
+
     def is_screen_context_enabled(self) -> bool:
         return self._screen_context_enabled
 
@@ -131,16 +126,14 @@ class InputPanel:
 
     def _toggle_screen_context(self) -> None:
         self._screen_context_enabled = not self._screen_context_enabled
-        if self._screen_context_enabled:
-            self.screen_lbl.configure(text="SCREEN: ON", fg=C.OK)
-            self.screen_pill.configure(highlightbackground=C.OK)
-            if self._on_status:
-                self._on_status("Screen Context: ON (Visual screen observation authorized)")
-        else:
-            self.screen_lbl.configure(text="SCREEN: OFF", fg=C.FG_3)
-            self.screen_pill.configure(highlightbackground=C.GLASS_BD_4)
-            if self._on_status:
-                self._on_status("Screen Context: OFF")
+        if hasattr(self, "_dropdown_screen_lbl") and self._dropdown_screen_lbl and self._dropdown_screen_lbl.winfo_exists():
+            self._dropdown_screen_lbl.configure(
+                text=f"●  SCREEN CONTEXT: {'ON' if self._screen_context_enabled else 'OFF'}",
+                fg=C.OK if self._screen_context_enabled else C.FG_3
+            )
+        if self._on_status:
+            msg = "Screen Context: ON (Visual screen observation authorized)" if self._screen_context_enabled else "Screen Context: OFF"
+            self._on_status(msg)
 
         if self._on_screen_context_toggle:
             self._on_screen_context_toggle(self._screen_context_enabled)
@@ -224,6 +217,49 @@ class InputPanel:
         hdr = tk.Frame(self._dropdown_win, bg=C.GLASS_4)
         hdr.pack(fill="x", pady=(0, 4))
         tk.Label(hdr, text="MODEL SELECTION", font=(F._PRIMARY, F.XS, "bold"), bg=C.GLASS_4, fg=C.FG_1).pack(side="left")
+
+        # Screen Context Toggle Row inside Model Selection Dropdown
+        screen_row = tk.Frame(self._dropdown_win, bg=C.GLASS_3, highlightthickness=1,
+                              highlightbackground=C.OK if self._screen_context_enabled else C.GLASS_BD_4,
+                              padx=6, pady=4, cursor="hand2")
+        screen_row.pack(fill="x", pady=(2, 6))
+
+        self._dropdown_screen_lbl = tk.Label(
+            screen_row,
+            text=f"●  SCREEN CONTEXT: {'ON' if self._screen_context_enabled else 'OFF'}",
+            font=(F._PRIMARY, F.XS, "bold"),
+            bg=C.GLASS_3,
+            fg=C.OK if self._screen_context_enabled else C.FG_3,
+            anchor="w"
+        )
+        self._dropdown_screen_lbl.pack(side="left", fill="x", expand=True)
+
+        dropdown_toggle_btn = tk.Label(
+            screen_row,
+            text="[ TOGGLE ]",
+            font=(F._PRIMARY, F.XS, "bold"),
+            bg=C.GLASS_3,
+            fg=C.BLUE_L if self._screen_context_enabled else C.FG_2,
+            anchor="e"
+        )
+        dropdown_toggle_btn.pack(side="right")
+
+        def _on_dropdown_screen_click(e):
+            self._toggle_screen_context()
+            if self._dropdown_screen_lbl and self._dropdown_screen_lbl.winfo_exists():
+                self._dropdown_screen_lbl.configure(
+                    text=f"●  SCREEN CONTEXT: {'ON' if self._screen_context_enabled else 'OFF'}",
+                    fg=C.OK if self._screen_context_enabled else C.FG_3
+                )
+                dropdown_toggle_btn.configure(
+                    fg=C.BLUE_L if self._screen_context_enabled else C.FG_2
+                )
+                screen_row.configure(
+                    highlightbackground=C.OK if self._screen_context_enabled else C.GLASS_BD_4
+                )
+
+        for w in (screen_row, self._dropdown_screen_lbl, dropdown_toggle_btn):
+            w.bind("<ButtonRelease-1>", _on_dropdown_screen_click)
 
         # Auto Option
         auto_btn = tk.Label(self._dropdown_win,
