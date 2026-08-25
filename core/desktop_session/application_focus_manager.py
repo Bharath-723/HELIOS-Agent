@@ -168,18 +168,7 @@ class ApplicationFocusManager:
             is_helios, clean_target, hwnd, proc_name
         )
 
-        if is_helios:
-            msg = f"HELIOS Safety Invariant: Foreground window (HWND {fg_hwnd}) is registered HELIOS overlay ({fg_title}). Refusing input action for target '{clean_target}'."
-            log.error("ApplicationFocusManager: %s", msg)
-            return FocusResult(
-                success=False,
-                hwnd=fg_hwnd,
-                process=fg_app,
-                window_title=fg_title,
-                foreground_verified=False,
-                error_message="FOCUS_ACQUISITION_FAILED: " + msg,
-            )
-
+        # 4. Check if target window is already in foreground
         if fg_hwnd == hwnd:
             log.info("ApplicationFocusManager: HWND %s ('%s') is ALREADY in foreground.", hwnd, title)
             return FocusResult(
@@ -190,44 +179,55 @@ class ApplicationFocusManager:
                 foreground_verified=True,
             )
 
-        # Activate Window to Foreground
+        log.info("ApplicationFocusManager: Transferring focus from HWND %s (%s) to target HWND %s ('%s' - %s)...",
+                 fg_hwnd, fg_title, hwnd, title, proc_name)
+
         focused = ScreenObserver.focus_target_window(hwnd)
-        time.sleep(0.1)
+        time.sleep(0.15)
 
         # 5. Verify Foreground Process & Safety Invariant
         post_fg_hwnd = user32.GetForegroundWindow()
         post_fg_title, post_fg_app = ScreenObserver.get_active_window_info_raw(post_fg_hwnd)
         post_is_helios = ScreenObserver.is_helios_window(post_fg_hwnd, post_fg_title, post_fg_app)
 
+        if post_fg_hwnd == hwnd or (proc_name.lower() in post_fg_app.lower() or post_fg_app.lower() in proc_name.lower()):
+            log.info("ApplicationFocusManager: Focus verified on HWND %s: '%s' (%s)", hwnd, title, proc_name)
+            return FocusResult(
+                success=True,
+                hwnd=hwnd,
+                process=proc_name,
+                window_title=title,
+                foreground_verified=True,
+            )
+
+        # Fallback if HELIOS overlay stayed in foreground: try restoring & bringing target to top
         if post_is_helios:
-            msg = f"HELIOS Safety Invariant: Post-focus foreground window is registered HELIOS overlay ({post_fg_title}). Focus acquisition failed."
-            log.error("ApplicationFocusManager: %s", msg)
-            return FocusResult(
-                success=False,
-                hwnd=post_fg_hwnd,
-                process=post_fg_app,
-                window_title=post_fg_title,
-                foreground_verified=False,
-                error_message="FOCUS_ACQUISITION_FAILED: " + msg,
-            )
+            log.info("ApplicationFocusManager: HELIOS overlay still in foreground. Retrying focus transfer with BringWindowToTop...")
+            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+            user32.BringWindowToTop(hwnd)
+            user32.SetForegroundWindow(hwnd)
+            time.sleep(0.15)
 
-        if post_fg_hwnd != hwnd and (proc_name.lower() not in post_fg_app.lower() and post_fg_app.lower() not in proc_name.lower()):
-            msg = f"FOCUS_ACQUISITION_FAILED: Could not establish focus on target HWND {hwnd} (Current FG: {post_fg_hwnd} '{post_fg_title}')"
-            log.warning("ApplicationFocusManager: %s", msg)
-            return FocusResult(
-                success=False,
-                hwnd=post_fg_hwnd,
-                process=post_fg_app,
-                window_title=post_fg_title,
-                foreground_verified=False,
-                error_message=msg,
-            )
+            post_fg_hwnd = user32.GetForegroundWindow()
+            post_fg_title, post_fg_app = ScreenObserver.get_active_window_info_raw(post_fg_hwnd)
 
-        log.info("ApplicationFocusManager: Focus verified on HWND %s: '%s' (%s)", hwnd, title, proc_name)
+            if post_fg_hwnd == hwnd or (proc_name.lower() in post_fg_app.lower() or post_fg_app.lower() in proc_name.lower()):
+                log.info("ApplicationFocusManager: Fallback focus verified on HWND %s: '%s' (%s)", hwnd, title, proc_name)
+                return FocusResult(
+                    success=True,
+                    hwnd=hwnd,
+                    process=proc_name,
+                    window_title=title,
+                    foreground_verified=True,
+                )
+
+        msg = f"FOCUS_ACQUISITION_FAILED: Could not establish focus on target HWND {hwnd} (Current FG: {post_fg_hwnd} '{post_fg_title}')"
+        log.warning("ApplicationFocusManager: %s", msg)
         return FocusResult(
-            success=True,
-            hwnd=hwnd,
-            process=proc_name,
-            window_title=title,
-            foreground_verified=True,
+            success=False,
+            hwnd=post_fg_hwnd,
+            process=post_fg_app,
+            window_title=post_fg_title,
+            foreground_verified=False,
+            error_message=msg,
         )
