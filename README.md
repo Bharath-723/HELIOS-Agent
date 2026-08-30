@@ -78,7 +78,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 4. [The HELIOS Orchestrator](#the-helios-orchestrator)
 5. [Natural-Language Intent](#natural-language-intent)
 6. [CAHRA — Context Aware Hybrid Routing Algorithm](#cahra--context-aware-hybrid-routing-algorithm)
-7. [How CAHRA Chooses a Model](#how-cahra-chooses-a-model)
+7. [Core LLM Decision Logic](#core-llm-decision-logic)
 8. [Local and Cloud Models](#local-and-cloud-models)
 9. [Screen Context & Live Desktop Interaction](#screen-context--live-desktop-interaction)
 10. [Desktop Automation](#desktop-automation)
@@ -96,7 +96,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 22. [Installation](#installation)
 23. [Configuration](#configuration)
 24. [Usage Examples](#usage-examples)
-25. [Limitations](#limitations)
+25. [System Scope & Environment Requirements](#system-scope--environment-requirements)
 26. [License](#license)
 
 ---
@@ -129,55 +129,49 @@ HELIOS is a desktop-native AI assistant designed to eliminate the friction betwe
 
 HELIOS processes user requests through a two-tier pipeline consisting of deterministic pre-routing guards, semantic intent parsing, capability-aware model routing, isolated capability execution, and state verification.
 
-```text
-    ┌──────────────────────────────┐
-    │        User / Voice         │
-    └──────────────┬───────────────┘
-                   │
-                   ▼
-    ┌──────────────────────────────┐
-    │        HELIOS UI / CLI       │
-    └──────────────┬───────────────┘
-                   │
-                   ▼
-    ┌──────────────────────────────┐
-    │     HELIOSAgent Orchestrator │
-    │                              │
-    │ Guards • Context • State     │
-    └──────────────┬───────────────┘
-                   │
-                   ▼
-    ┌──────────────────────────────┐
-    │          NLRouter            │
-    │   Understand user intent     │
-    └──────────────┬───────────────┘
-                   │
-          ┌────────┴─────────┐
-          │                  │
-          ▼                  ▼
-    ┌─────────────┐    ┌──────────────┐
-    │   CAHRA     │    │ Tool / Action│
-    │ Model Route │    │   Modules    │
-    └──────┬──────┘    └──────┬───────┘
-           │                  │
-           ▼                  │
-    ┌─────────────┐            │
-    │ HybridLLM   │            │
-    └──────┬──────┘            │
-           └──────────┬────────┘
-                      ▼
-              ┌──────────────┐
-              │   Execute    │
-              └──────┬───────┘
-                     ▼
-              ┌──────────────┐
-              │   Observe    │
-              │ + Verify     │
-              └──────┬───────┘
-                     ▼
-              ┌──────────────┐
-              │   Response   │
-              └──────────────┘
+### System Architecture & Integrated Layered Workflow
+
+```mermaid
+flowchart TD
+    subgraph UI ["INTERFACE LAYER"]
+        A1["helios_popup.py (Floating Glass Dock)"]
+        A2["main.py (CLI Mode)"]
+        A3["Chat History & Activity Telemetry"]
+    end
+
+    subgraph ORCH ["ORCHESTRATOR LAYER"]
+        B1["agent.py — HELIOSAgent Orchestrator"]
+        B2["Receives prompt, checks pre-routing guards (Session & Commerce)"]
+        B3["Dispatches validated action to correct capability module"]
+    end
+
+    subgraph MODULES ["ACTION & CAPABILITY MODULES"]
+        C1["Desktop: Apps, Media, Files, Focus, Win32 Z-Order"]
+        C2["System: Wi-Fi, Bluetooth, Brightness, Audio Volume"]
+        C3["Notes: Local CRUD & Local RAG Knowledge Base"]
+        C4["Scheduler: APScheduler Reminders & Cron Tasks"]
+        C5["Web / Browser: Tavily Live Search, Playwright"]
+        C6["Documents: PDF, DOCX, TXT, ReportLab PDF Conversion"]
+        C7["Analytics: Spreadsheet Agent & Sandboxed Python Execution"]
+    end
+
+    subgraph CORE ["CORE INTELLIGENCE LAYER"]
+        D1["NLRouter: Fast Regex & Paraphrase Intent Normalization"]
+        D2["CAHRA: Context Aware Hybrid Routing Algorithm"]
+        D3["HybridLLM Engine: Local Ollama + Cloud Gemini / GPT / OpenRouter / Groq"]
+    end
+
+    subgraph EXEC ["EXECUTION & VERIFICATION LAYER"]
+        E1["Local Execution: Ollama gemma3 (Offline / Privacy / Fast)"]
+        E2["Cloud Execution: Gemini 3.6 Flash / GPT-4o-mini (Live Data)"]
+        E3["StateVerifier & RecoveryEngine: Window State Post-Verification"]
+    end
+
+    UI --> ORCH
+    ORCH --> CORE
+    CORE --> MODULES
+    CORE --> EXEC
+    MODULES --> E3
 ```
 
 ---
@@ -248,31 +242,6 @@ HELIOS separates **what the user means** from **how the action is technically ex
 
 The **Context Aware Hybrid Routing Algorithm (CAHRA)** is the model-selection engine in HELIOS. It determines whether a request should be processed by a local LLM or escalated to a cloud model.
 
-```text
-    User Request
-         │
-         ▼
-    Context Extraction (Prompt, Hardware, Internet, Keys)
-         │
-         ▼
-    Feature Evaluation (Privacy, Freshness, Complexity)
-         │
-         ▼
-    Constraint Engine (Force Local / Force Cloud)
-         │
-         ▼
-    Model Utility Scoring (Local vs Cloud Profiles)
-         │
-         ▼
-    Candidate Availability (Ollama, Gemini, OpenAI, OpenRouter, Groq)
-         │
-         ▼
-    Explainability Engine (Decision Trace Logging)
-         │
-         ▼
-    HybridLLM Execution
-```
-
 ### Routing Dimensions
 
 1. **Privacy Score ($R_p$)**: Detects sensitive keywords, personal credentials, or local data references. High privacy requirements force processing to local Ollama models.
@@ -283,14 +252,31 @@ The **Context Aware Hybrid Routing Algorithm (CAHRA)** is the model-selection en
 
 ---
 
-## How CAHRA Chooses a Model
+## Core LLM Decision Logic
 
-1. **Feature Extraction**: Extracts quantitative scores for Privacy ($R_p$), Freshness ($R_f$), and Complexity ($R_c$) from the input text.
-2. **Constraint Check**:
-   - If internet is unavailable or local data is sensitive $\rightarrow$ **FORCE LOCAL**.
-   - If prompt explicitly requests live web search or shopping $\rightarrow$ **FORCE CLOUD**.
-3. **Utility Scoring**: Computes model utility for available local and cloud profiles using weighted candidate match scoring.
-4. **Selection & Fallback**: Selects the candidate with highest utility. If the primary model fails or times out, CAHRA falls back to alternative available models.
+The following flowchart details how HELIOS evaluates model routing decisions in real time. **Gemma3 (local) is always the offline fallback so HELIOS never fails completely.**
+
+```mermaid
+flowchart TD
+    Start([User Command Received]) --> ModeCheck{Check LLM_MODE in .env}
+
+    ModeCheck -- "offline" --> LocalOnly["Use Local Model (Ollama / gemma3)"]
+    ModeCheck -- "online" --> CloudCheck{Has Cloud Key & Internet?}
+    ModeCheck -- "auto" --> InternetCheck{Needs Internet / Live Search?}
+
+    InternetCheck -- "No" --> PrivacyCheck{Contains Sensitive Local Data?}
+    PrivacyCheck -- "Yes" --> LocalOnly
+    PrivacyCheck -- "No" --> LocalOnly
+
+    InternetCheck -- "Yes" --> CloudCheck
+
+    CloudCheck -- "Yes" --> CloudExec["Cloud LLM (Gemini 3.6 Flash / GPT / OpenRouter / Groq)"]
+    CloudCheck -- "No Key or Offline" --> FallbackLocal["Fallback to Local Ollama (gemma3)"]
+
+    LocalOnly --> FinalResp([Grounded Response Returned to User])
+    CloudExec --> FinalResp
+    FallbackLocal --> FinalResp
+```
 
 ---
 
@@ -413,7 +399,20 @@ HELIOS processes local user files:
 
 HELIOS features an end-to-end 14-stage commercial research pipeline:
 
-$$\text{DISCOVERING} \rightarrow \text{UNDERSTANDING} \rightarrow \text{RESEARCHING} \rightarrow \text{COMPARING} \rightarrow \text{RECOMMENDING} \rightarrow \text{CALCULATING} \rightarrow \text{TRANSACTION\_PREPARED} \rightarrow \text{REQUIRES\_AUTHORIZATION} \rightarrow \text{AUTHORIZED} \rightarrow \text{CHECKOUT} \rightarrow \text{PAYMENT} \rightarrow \text{VERIFYING} \rightarrow \text{VERIFIED}$$
+```text
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌───────────┐     ┌─────────────┐
+│ DISCOVERING │ ──► │ UNDERSTANDING│ ──► │ RESEARCHING │ ──► │ COMPARING │ ──► │ RECOMMENDING│
+└─────────────┘     └──────────────┘     └─────────────┘     └───────────┘     └──────┬──────┘
+                                                                                      │
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌───────────┐            │
+│  AUTHORIZED │ ◄── │ AUTHORIZATION│ ◄── │ TRANSACTION │ ◄── │CALCULATING│ ◄──────────┘
+└──────┬──────┘     │  REQUIRED    │     │  PREPARED   │     └───────────┘
+       │            └──────────────┘     └─────────────┘
+       ▼
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌───────────┐
+│  CHECKOUT   │ ──► │   PAYMENT    │ ──► │  VERIFYING  │ ──► │ VERIFIED  │
+└─────────────┘     └──────────────┘     └─────────────┘     └───────────┘
+```
 
 - **Multi-Merchant Comparison**: Searches across Amazon, Flipkart, Croma, and other platforms to aggregate prices.
 - **Direct Product Page Requirement**: Payment intent preparation requires a verified direct product page URL. Generic search pages or category listings are marked as informational research only.
@@ -424,14 +423,20 @@ $$\text{DISCOVERING} \rightarrow \text{UNDERSTANDING} \rightarrow \text{RESEARCH
 
 Security boundaries for financial operations are enforced outside LLM control:
 
-```text
-LLM Commerce Request ──► Price Verification ──► TransactionGuard Check
-                                                       │
-                                                       ▼
-  User Click Authorization ◄── Payment Preview Card Rendered
-         │
-         ▼
-  HMAC-SHA256 Signature Check ──► Razorpay Sandbox Order Creation ──► Verified Receipt
+```mermaid
+flowchart TD
+    A[LLM Commerce Request] --> B[Price & Product Page Verification]
+    B --> C[TransactionGuard Safety Check]
+    C --> D[Render Payment Preview Card in UI]
+    D --> E[User Explicitly Clicks Authorize Button]
+    E --> F[HMAC-SHA256 Payload Signature Verification]
+    F --> G[Razorpay Sandbox Order Creation]
+    G --> H[Verified Payment Receipt Issued]
+
+    style A fill:#1e1e2e,stroke:#74c7ec,color:#fff
+    style D fill:#313244,stroke:#f9e2af,color:#fff
+    style E fill:#2d4f3e,stroke:#a6e3a1,color:#fff
+    style H fill:#253759,stroke:#89b4fa,color:#fff
 ```
 
 - **Explicit User Click Authorization**: The LLM **cannot** directly trigger a payment transaction. The user must physically click the **Authorize Payment** button on the UI preview card.
@@ -604,9 +609,9 @@ Merchant Offer Comparison:
 
 ---
 
-## Limitations
+## System Scope & Environment Requirements
 
-- **Windows OS Dependency**: Desktop window enumeration and UI automation rely on Windows Win32 APIs.
+- **Windows OS Dependency**: Desktop window enumeration and UI automation rely on native Windows Win32 APIs.
 - **Local Model Hardware**: Performance of local Ollama models depends on available CPU/GPU and RAM resources.
 - **OCR Resolution Scope**: RapidOCR text extraction accuracy depends on screen resolution, text size, and font rendering.
 - **Dynamic Web Sites**: Web search parsing depends on search provider API structure.
