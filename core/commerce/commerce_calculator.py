@@ -15,15 +15,19 @@ class CommerceCalculator:
     """Financial total calculator for commercial transactions."""
 
     @staticmethod
-    def calculate(candidate: ProductCandidate, shipping_fee: float = 0.0, tax: float = 0.0) -> CostBreakdown:
-        log.info("CommerceCalculator: Calculating cost for '%s' (Price: ₹%s)",
-                 candidate.name, candidate.price_inr)
+    def calculate(candidate: ProductCandidate, quantity: int = 1, shipping_fee: float = 0.0, tax: float = 0.0) -> CostBreakdown:
+        qty = max(1, quantity)
+        unit_price = candidate.price_inr
+        total_item_price = round(unit_price * qty, 2)
+        log.info("CommerceCalculator: Calculating cost for '%s' (Unit: ₹%.2f, Qty: %d, Total: ₹%.2f)",
+                 candidate.name, unit_price, qty, total_item_price)
 
-        # In standard Sandbox demonstration mode, shipping is free and tax is included in price
         is_exact = True
 
         return CostBreakdown(
-            item_price_inr=candidate.price_inr,
+            item_price_inr=total_item_price,
+            unit_price_inr=unit_price,
+            quantity=qty,
             shipping_fee_inr=shipping_fee,
             tax_inr=tax,
             is_exact_total=is_exact,

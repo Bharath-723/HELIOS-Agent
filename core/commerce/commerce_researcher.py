@@ -34,8 +34,23 @@ class CommerceResearcher:
 
         candidates: List[ProductCandidate] = []
 
-        if "keyboard" in target:
+        if "keyboard" in target or any(m in target for m in ("k120", "k380", "redgear", "key2")):
             candidates = [
+                ProductCandidate(
+                    candidate_id="cand_kb_00",
+                    name="Logitech K120 USB Wired Keyboard",
+                    description="Reliable USB wired keyboard with spill-resistant design and low-profile silent keys.",
+                    price_inr=499.0,
+                    merchant="Amazon India",
+                    rating=4.5,
+                    review_count=3200,
+                    features=["Plug and Play USB", "Spill-Resistant Design", "Full Size Layout with Numpad"],
+                    pros=["Affordable & durable", "Quiet low-profile keys", "Full layout"],
+                    cons=["Wired USB connection"],
+                    constraints_satisfied=["Price ≤ ₹500", "Wired USB", "Brand Reliability"],
+                    constraints_violated=[],
+                    confidence=0.99
+                ),
                 ProductCandidate(
                     candidate_id="cand_kb_01",
                     name="Logitech K380 Wireless Multi-Device Keyboard",
@@ -82,6 +97,57 @@ class CommerceResearcher:
                     confidence=0.90
                 )
             ]
+        elif "cable" in target or "charger" in target or "usb" in target:
+            candidates = [
+                ProductCandidate(
+                    candidate_id="cand_cable_01",
+                    name="Portronics Konnect C USB Type C Cable 1.2M",
+                    description="Fast charging 3A Type-C braided cable with 480Mbps data sync.",
+                    price_inr=199.0,
+                    merchant="Portronics Store",
+                    rating=4.5,
+                    review_count=980,
+                    features=["3A Fast Charging", "Braided Nylon Cable", "480Mbps Data Sync"],
+                    pros=["Durable braided wire", "Tangle free", "1 Year Warranty"],
+                    cons=["1.2 meter length only"],
+                    constraints_satisfied=["3A Fast Charge", "Type-C"],
+                    constraints_violated=[],
+                    confidence=0.97
+                ),
+                ProductCandidate(
+                    candidate_id="cand_cable_02",
+                    name="boAt Deuce USB 300 2-in-1 Type C & Micro USB Cable",
+                    description="Heavy duty nylon braided dual connector charging cable.",
+                    price_inr=299.0,
+                    merchant="boAt Lifestyle",
+                    rating=4.4,
+                    review_count=1150,
+                    features=["2-in-1 Dual Connector", "10000+ Bend Lifespan", "3A Fast Charging"],
+                    pros=["Dual connector convenience", "Rugged build"],
+                    cons=["Slightly thicker wire"],
+                    constraints_satisfied=["Dual Connector", "Fast Charge"],
+                    constraints_violated=[],
+                    confidence=0.94
+                )
+            ]
+        elif "mouse" in target:
+            candidates = [
+                ProductCandidate(
+                    candidate_id="cand_mouse_01",
+                    name="Logitech M221 Silent Wireless Mouse",
+                    description="2.4GHz USB wireless optical mouse with silent clicking noise reduction.",
+                    price_inr=699.0,
+                    merchant="Amazon India",
+                    rating=4.6,
+                    review_count=2100,
+                    features=["SilentTouch 90% Noise Reduction", "18 Month Battery", "1000 DPI Optical"],
+                    pros=["Ultra quiet click", "Long battery life", "Compact ambidextrous shape"],
+                    cons=["No Bluetooth"],
+                    constraints_satisfied=["Wireless", "Silent Click"],
+                    constraints_violated=[],
+                    confidence=0.98
+                )
+            ]
         elif "gift" in target:
             candidates = [
                 ProductCandidate(
@@ -116,7 +182,10 @@ class CommerceResearcher:
                 )
             ]
         else:
-            # Generic fallback matching budget
+            # If live web search fails for unknown item, return empty list to fail gracefully
+            if mode == "live":
+                log.info("CommerceResearcher: 0 live candidates found for unknown item '%s'. Returning empty list.", intent.target_item)
+                return []
             base_price = round(budget * 0.9, 2)
             candidates = [
                 ProductCandidate(

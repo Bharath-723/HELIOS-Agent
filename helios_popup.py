@@ -144,7 +144,7 @@ class HELIOSApp:
         self.root.bind("<Escape>", lambda e: self._on_escape())
         
         # Custom virtual events
-        self.root.bind("<<LoadSession>>", lambda e: self._on_load_session(self._get_clipboard_text()))
+        self.root.bind("<<LoadSession>>", lambda e: self._on_load_session(getattr(e, "data", "")))
         self.root.bind("<<EditUserText>>", lambda e: self._edit_command_entry(e))
         self.root.bind("<<MessageDeleted>>", lambda e: self._on_message_deleted())
         self.root.bind("<<SaveNote>>", lambda e: self._save_agent_note(e))
@@ -647,7 +647,16 @@ class HELIOSApp:
 
     # ═════════════════════════════════════════════════════════════════════════
     # SEND & PROCESS
-    # ═════════════════════════════════════════════════════════════════════════
+    def _build_file_tags(self, files: list[str]) -> str:
+        from modules.document_processor import DocumentProcessor
+        from pathlib import Path
+        tags = []
+        for f in files:
+            content = DocumentProcessor.extract_text(f)
+            fname = Path(f).name
+            tags.append(f"\n[Attached File: {fname}]\n{content}\n[End of File: {fname}]")
+        return "\n".join(tags)
+
     def _on_send(self, text: str, files: list[str] = None) -> None:
         if files is None:
             files = []
@@ -827,9 +836,13 @@ class HELIOSApp:
                 }))
                 return
 
+            config = getattr(self.agent.payments, "tool", None).config if hasattr(self.agent, "payments") and hasattr(self.agent.payments, "tool") else None
+            is_real_test_key = bool(config and config.is_valid() and not config.key_id.startswith("rzp_test_sandbox") and not config.key_id.startswith("rzp_test_mock"))
+            use_mock = not is_real_test_key
+
             order_res = self.agent.payments.execute_tool_call("create_order", {
                 "intent_id": intent_id,
-                "mock": True
+                "mock": use_mock
             })
             if not order_res.get("success"):
                 self.root.after(0, lambda: self.chat.add_payment_result_card({
@@ -991,21 +1004,63 @@ class HELIOSApp:
         if hasattr(self, "status_bar") and self.status_bar:
             self.status_bar.update(state="Ready")
 
-    def _save_agent_note(self, e) -> None:
+    def _save_agent_note(self, e=None) -> None:
         text = self._get_clipboard_text()
         if self.agent:
             try:
-                self.agent.notes.add(text[:30], text)
+                self.agent.notes.create(text[:30], text)
                 self.chat.add_system_notice("Note saved successfully.")
             except Exception as ex:
                 self.chat.add_system_notice(f"Failed to save note: {ex}")
 
-    def _regenerate_last(self) -> None:
+    def _regenerate_last(self, e=None) -> None:
         if self.agent:
             hist = self.agent.history.messages
             user_queries = [m for m in hist if m.get("role") == "user"]
             if user_queries:
-                self._on_send(user_queries[-1]["content"], [])
+                prompt_text = user_queries[-1]["content"]
+                if self.chat._cards_registry:
+                    last_card = self.chat._cards_registry[-1]
+                    if last_card.get("type") in ("assistant", "streaming") and "outer" in last_card:
+                        if last_card["outer"].winfo_exists():
+                            last_card["outer"].destroy()
+                        self.chat._cards_registry.pop()
+
+                if self.agent.history.messages and self.agent.history.messages[-1].get("role") == "helios":
+                    self.agent.history.messages.pop()
+
+                self.anim.set_state("thinking")
+                self.status_bar.set_state_thinking()
+                is_simple = prompt_text.lower().strip() in _SIMPLE_PROMPTS
+                threading.Thread(
+                    target=self._bg_process_regen,
+                    args=(prompt_text, is_simple),
+                    daemon=True,
+                ).start()
+
+    def _bg_process_regen(self, prompt: str, is_simple: bool) -> None:
+        """Process regeneration without creating duplicate user messages or UI bubbles."""
+        time_started = time.time()
+        try:
+            response_text = self.agent._process_impl(prompt)
+            elapsed_ms = (time.time() - time_started) * 1000
+
+            if len(self.agent.history.messages) >= 2 and self.agent.history.messages[-2].get("role") == "user":
+                if self.agent.history.messages[-2]["content"] == prompt:
+                    del self.agent.history.messages[-2]
+
+            model_used = getattr(self.agent, "last_used_model", None)
+            if not model_used and self.agent and hasattr(self.agent, "llm"):
+                model_used = getattr(self.agent.llm, "active_cloud_model", None) or getattr(self.agent.llm, "ollama_model", "gemma3")
+
+            self.q.put(("response", {
+                "text":       response_text,
+                "elapsed_ms": elapsed_ms,
+                "model":      model_used or "gemma3",
+            }))
+        except Exception as ex:
+            import traceback
+            self.q.put(("error", f"{ex}\n{traceback.format_exc()}"))
 
     # ═════════════════════════════════════════════════════════════════════════
     # GLOBAL SEARCH & COMMAND PALETTE

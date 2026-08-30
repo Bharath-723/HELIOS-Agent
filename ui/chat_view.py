@@ -390,6 +390,8 @@ class ChatView:
                                lambda: self._save_note(text),  bg=C.DEPTH_2)
         self._make_action_btn(action_bar, I.RETRY + " Regen",
                                lambda: self._regenerate_message(), bg=C.DEPTH_2)
+        self._make_action_btn(action_bar, I.DELETE + " Delete",
+                               lambda: self._delete_assistant_card(outer), bg=C.DEPTH_2)
 
         def _enter(e):
             action_bar.pack(anchor="e", padx=12, pady=(0, 6))
@@ -412,6 +414,15 @@ class ChatView:
         self._scroll_to_bottom()
         return card
 
+    def _delete_assistant_card(self, outer_frame: tk.Frame) -> None:
+        if outer_frame and outer_frame.winfo_exists():
+            outer_frame.destroy()
+        self.hide_thinking()
+        self._cards_registry = [c for c in self._cards_registry if c.get("outer") != outer_frame]
+        try:
+            self.frame.winfo_toplevel().event_generate("<<MessageDeleted>>")
+        except Exception:
+            pass
 
     # ═════════════════════════════════════════════════════════════════════════
     # STREAMING PLACEHOLDER
@@ -449,7 +460,7 @@ class ChatView:
         hdr = tk.Frame(body, bg=C.DEPTH_2)
         hdr.pack(fill="x", padx=12, pady=(8, 4))
 
-        lbl_h = tk.Label(hdr, text="H  HELIOS",
+        lbl_h = tk.Label(hdr, text="✦ HELIOS",
                           font=(F._PRIMARY, F.SM, "bold"),
                           bg=C.DEPTH_2, fg=C.FG_1)
         lbl_h.pack(side="left")
@@ -861,6 +872,10 @@ class ChatView:
         amt_inr = intent_dict.get("amount", 0) / 100.0
         merchant = intent_dict.get("merchant_name", "Merchant")
         desc = intent_dict.get("description", "Product/Service")
+        meta = intent_dict.get("metadata", {}) or {}
+        qty = meta.get("quantity", 1)
+        unit_p = meta.get("unit_price_inr", amt_inr / max(1, qty))
+        reason = meta.get("reason", "Verified candidate match")
 
         def _row(parent, label, val, is_bold=False, val_color=C.FG_1):
             rf = tk.Frame(parent, bg=C.GLASS_3)
@@ -871,8 +886,11 @@ class ChatView:
 
         _row(grid, "Merchant:", merchant)
         _row(grid, "Item:", desc)
+        if qty > 1:
+            _row(grid, "Quantity:", f"{qty} units")
+            _row(grid, "Unit Price:", f"₹{unit_p:,.2f}")
         _row(grid, "Amount:", f"₹{amt_inr:,.2f}", is_bold=True, val_color=C.CYAN)
-        _row(grid, "Reason:", "Matches your request")
+        _row(grid, "Reason:", reason)
         
         lbl_status = tk.Label(body, text="Status: Awaiting your explicit authorization", font=(F._FALLBACK, F.XS, "bold"),
                               bg=C.GLASS_3, fg=C.GOLD if hasattr(C, 'GOLD') else "#F59E0B")

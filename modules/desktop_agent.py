@@ -1222,3 +1222,32 @@ class DesktopAgent:
         except Exception as exc:
             log.error("stop_media error: %s", exc, exc_info=True)
             return f"Error stopping media: {exc}"
+
+    def click_element(self, target_description: str) -> str:
+        """
+        Locates target UI element via Hybrid UIElementResolver (UIA -> MSAA -> RapidOCR -> PyAutoGUI fallback).
+        Controlled failure safety: never clicks arbitrary random coordinates when unresolved.
+        """
+        try:
+            from core.ui_element_resolver import UIElementResolver
+            resolver = UIElementResolver()
+
+            ss_path = str(Path("scratch") / "ui_resolve_ss.png")
+            Path("scratch").mkdir(exist_ok=True)
+            pyautogui.screenshot(ss_path)
+
+            res = resolver.resolve_target(target_description, screenshot_path=ss_path)
+            cx, cy = res.get("center", (0, 0))
+            method = res.get("method", "none")
+            success = res.get("success", False)
+
+            if success and (cx > 0 or cy > 0):
+                pyautogui.click(cx, cy)
+                return f"Clicked '{target_description}' at ({cx}, {cy}) [resolved via {method.upper()}]."
+            else:
+                reason = res.get("failure_reason", "Element not found")
+                log.warning("UIElementResolver resolution failed for '%s': %s", target_description, reason)
+                return f"Target '{target_description}' could not be resolved. Reason: {reason}"
+        except Exception as exc:
+            log.error("click_element error: %s", exc, exc_info=True)
+            return f"Click element error: {exc}"

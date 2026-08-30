@@ -311,8 +311,8 @@ class LocalAgentController:
                 ]
             )
 
-        # F. Open Application ("open settings", "open display")
-        if "open settings" in lower_inst:
+        # F. Open Application ("open settings", "open system settings", "open display")
+        if "settings" in lower_inst and not any(kw in lower_inst for kw in ("wifi", "wi-fi", "bluetooth", "display", "sound", "network", "battery", "storage", "privacy", "updates")):
             return DesktopGoal(
                 goal_type="OPEN_APPLICATION",
                 target_app="settings",

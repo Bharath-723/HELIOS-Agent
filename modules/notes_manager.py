@@ -60,6 +60,8 @@ class NotesManager:
             log.error("Error creating note: %s", exc, exc_info=True)
             return f"Failed to create note: {exc}"
 
+    add = create
+
     def read(self, title: str) -> str:
         log.info("read note called: title='%s'", title)
         try:

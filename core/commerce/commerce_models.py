@@ -60,6 +60,8 @@ class CommerceIntent:
     target_item: str
     budget_limit_inr: Optional[float] = None
     preferred_merchant: Optional[str] = None
+    quantity: int = 1
+    requested_model: Optional[str] = None
     explicit_purchase_requested: bool = False
     explicit_no_buy: bool = False
     extracted_constraints: List[str] = field(default_factory=list)
@@ -71,6 +73,8 @@ class CommerceIntent:
             "target_item": self.target_item,
             "budget_limit_inr": self.budget_limit_inr,
             "preferred_merchant": self.preferred_merchant,
+            "quantity": self.quantity,
+            "requested_model": self.requested_model,
             "explicit_purchase_requested": self.explicit_purchase_requested,
             "explicit_no_buy": self.explicit_no_buy,
             "extracted_constraints": self.extracted_constraints,
@@ -201,6 +205,8 @@ class RecommendationResult:
 @dataclass
 class CostBreakdown:
     item_price_inr: float
+    unit_price_inr: float = 0.0
+    quantity: int = 1
     shipping_fee_inr: float = 0.0
     tax_inr: float = 0.0
     is_exact_total: bool = True
@@ -208,7 +214,9 @@ class CostBreakdown:
 
     @property
     def total_inr(self) -> float:
-        return round(self.item_price_inr + self.shipping_fee_inr + self.tax_inr, 2)
+        unit = self.unit_price_inr if self.unit_price_inr > 0 else self.item_price_inr
+        calc_total = (unit * self.quantity) + self.shipping_fee_inr + self.tax_inr
+        return round(calc_total, 2)
 
     @property
     def total_paise(self) -> int:
@@ -217,6 +225,8 @@ class CostBreakdown:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "item_price_inr": self.item_price_inr,
+            "unit_price_inr": self.unit_price_inr or self.item_price_inr,
+            "quantity": self.quantity,
             "shipping_fee_inr": self.shipping_fee_inr,
             "tax_inr": self.tax_inr,
             "total_inr": self.total_inr,

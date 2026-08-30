@@ -358,18 +358,26 @@ Write-Output 'OK'
     # ── Settings & Network ────────────────────────────────────────────────
     def open_settings(self, page: str = "") -> str:
         pages = {
-            "wifi": "ms-settings:network-wifi",
-            "bluetooth": "ms-settings:bluetooth",
-            "display": "ms-settings:display",
-            "sound": "ms-settings:sound",
-            "battery": "ms-settings:batterysaver",
-            "updates": "ms-settings:windowsupdate",
-            "airplane": "ms-settings:network-airplanemode",
-            "storage": "ms-settings:storagesense",
-            "nightlight": "ms-settings:nightlight",
+            "wifi": ("ms-settings:network-wifi", "Wi-Fi"),
+            "bluetooth": ("ms-settings:bluetooth", "Bluetooth"),
+            "display": ("ms-settings:display", "Display"),
+            "sound": ("ms-settings:sound", "Sound"),
+            "battery": ("ms-settings:batterysaver", "Battery Saver"),
+            "updates": ("ms-settings:windowsupdate", "Windows Update"),
+            "airplane": ("ms-settings:network-airplanemode", "Airplane Mode"),
+            "storage": ("ms-settings:storagesense", "Storage"),
+            "nightlight": ("ms-settings:nightlight", "Night Light"),
         }
-        webbrowser.open(pages.get(page.lower(), "ms-settings:"))
-        return f"Opened {page or 'Windows'} Settings."
+        p_clean = page.lower().strip()
+        if not p_clean or any(gen == p_clean or f" {gen}" in p_clean or f"{gen} " in p_clean for gen in ("settings", "windows", "general", "main", "system")) and not any(spec in p_clean for spec in ("wifi", "wi-fi", "bluetooth", "display", "sound", "battery", "storage", "privacy", "updates")):
+            webbrowser.open("ms-settings:")
+            return "Opened Settings."
+        if p_clean in pages:
+            uri, title = pages[p_clean]
+            webbrowser.open(uri)
+            return f"Opened {title} Settings."
+        webbrowser.open("ms-settings:")
+        return "Opened Settings."
 
     def flush_dns(self) -> str:
         c, o, e = _ps("ipconfig /flushdns; Write-Output 'OK'")

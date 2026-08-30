@@ -293,24 +293,42 @@ class VoiceInput:
     # ── Whisper offline transcription ─────────────────────────────────────────
     def _whisper(self, audio) -> VoiceResult:
         """
-        Uses speech_recognition's recognize_whisper() wrapper.
-        Requires:  pip install openai-whisper
-        Silently returns a failure VoiceResult if not installed.
+        Uses faster-whisper or openai-whisper for offline speech transcription.
         """
+        # 1. Try faster-whisper backend
+        try:
+            import tempfile, os
+            from faster_whisper import WhisperModel
+
+            wav_bytes = audio.get_wav_data()
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
+                tf.write(wav_bytes)
+                tmp_path = tf.name
+            # File must be closed on Windows before opening in C++ backend
+
+            try:
+                model = WhisperModel("tiny", device="cpu", compute_type="float32")
+                segments, info = model.transcribe(tmp_path, beam_size=1)
+                text = " ".join([seg.text.strip() for seg in segments]).strip() or "[silence]"
+                log.info("Faster-Whisper STT -> '%s'", text)
+                return VoiceResult.ok(text, engine="Faster-Whisper (offline)")
+            finally:
+                if os.path.exists(tmp_path):
+                    try:
+                        os.unlink(tmp_path)
+                    except Exception:
+                        pass
+        except Exception as exc:
+            log.info("Faster-Whisper STT attempt (%s) — trying openai-whisper fallback", exc)
+
+        # 2. Fallback to speech_recognition recognize_whisper
         try:
             import speech_recognition as sr
             recognizer = sr.Recognizer()
-            # language tag: "en-IN" → "en" for Whisper
             lang = self.language.split("-")[0]
-            text = recognizer.recognize_whisper(
-                audio,
-                language=lang,
-                model="base",           # tiny / base / small — trade speed for accuracy
-            )
-            log.info("Whisper STT → \"%s\"", text)
+            text = recognizer.recognize_whisper(audio, language=lang, model="tiny")
+            log.info("Whisper STT -> '%s'", text)
             return VoiceResult.ok(text, engine="Whisper (offline)")
-        except ImportError:
-            return VoiceResult.fail("openai-whisper not installed.")
         except Exception as exc:
             log.warning("Whisper STT failed: %s", exc)
             return VoiceResult.fail(f"Whisper error: {exc}")

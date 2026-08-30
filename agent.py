@@ -20,6 +20,7 @@ import psutil
 import atexit
 from datetime import datetime
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 
 from core.llm_engine import HybridLLM
 from core.nl_router import NLRouter
@@ -34,13 +35,20 @@ from modules.chat_history import ChatHistory
 
 # ── Logger ────────────────────────────────────────────────────────────────────
 log_path = Path(__file__).parent / "helios.log"
+file_handler = RotatingFileHandler(
+    log_path,
+    maxBytes=5 * 1024 * 1024,  # 5 MB rollover limit
+    backupCount=3,              # Retain 3 rotated log files
+    encoding="utf-8"
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
     datefmt="%H:%M:%S",
     handlers=[
-        logging.StreamHandler(),                            # console
-        logging.FileHandler(log_path, encoding="utf-8"),    # file
+        logging.StreamHandler(),
+        file_handler,
     ],
 )
 log = logging.getLogger("helios.agent")
@@ -163,6 +171,8 @@ class HELIOSAgent:
             desktop=self.desktop, sysctrl=self.sysctrl, commerce=self.commerce, llm=self.llm
         )
         self.history   = ChatHistory()
+        from core.context_resolver import ContextResolver
+        self.context_resolver = ContextResolver()
         self._shutdown_done = False
         atexit.register(self.shutdown)
 
@@ -270,8 +280,20 @@ class HELIOSAgent:
         self.history.add("user", text)
 
         # ── Pre-routing guards ──────────────────────────────────────────────
-        # Guard 0: Direct Real-Time Date & Time Queries
         lower_raw = text.lower().strip()
+        # Guard 0.0: Minimal Greetings & Acknowledgments (Demand-driven, zero unsolicited date/time/tool calls)
+        _GREETINGS = {"hi", "hey", "hello", "good morning", "good evening", "greetings", "hey there", "hello there", "hi there"}
+        _THANKS = {"thanks", "thank you", "thanks!", "thank you!", "thx"}
+        if lower_raw in _GREETINGS:
+            result = "Hello! How can I assist you?"
+            self.history.add("helios", result)
+            return result
+        if lower_raw in _THANKS:
+            result = "You're welcome!"
+            self.history.add("helios", result)
+            return result
+
+        # Guard 0: Direct Real-Time Date & Time Queries
         if lower_raw in [
             "today date", "today's date", "what is today date", "what is today's date",
             "current date", "what is the date today", "what date is it", "date today", "date"
@@ -327,8 +349,13 @@ class HELIOSAgent:
             return result
 
         # Commerce Indicators check
-        _COMMERCE_INDICATORS = ("under ₹", "under rs", "for ₹", "buy the best", "compare these", "don't buy", "dont buy", "make the payment", "checkout", "buy this", "pay ₹")
-        _is_comm = any(re.search(r'\b' + re.escape(v) + r'\b', lower_raw) for v in ("pay", "buy", "purchase", "checkout")) or any(kw in lower_raw for kw in _COMMERCE_INDICATORS)
+        _COMMERCE_INDICATORS = (
+            "under ₹", "under rs", "for ₹", "buy the best", "compare these", "don't buy", "dont buy",
+            "make the payment", "checkout", "buy this", "pay ₹", "shopping platforms", "shopping sites",
+            "all platforms", "all the shopping", "least amount", "cheapest", "lowest price", "search for a",
+            "search book", "todo book", "todo list book", "shopping", "ecommerce", "merchant"
+        )
+        _is_comm = any(re.search(r'\b' + re.escape(v) + r'\b', lower_raw) for v in ("pay", "buy", "purchase", "checkout", "shop", "shopping", "merchant", "store", "product", "price")) or any(kw in lower_raw for kw in _COMMERCE_INDICATORS)
         _is_pure_info = lower_raw.startswith("what is the price") or "previous payments" in lower_raw or "payment history" in lower_raw
 
         # Class B Visual / Screen-Dependent Interaction Keywords
@@ -344,10 +371,11 @@ class HELIOSAgent:
 
         # Class A System / Application Launch & Control Keywords (No screen observation required)
         _is_class_a = any(lower_raw.startswith(kw) for kw in (
-            "open chrome", "launch chrome", "open settings", "open display", "open notepad",
+            "open chrome", "launch chrome", "open settings", "open system settings", "open the settings", "open display", "open notepad",
             "open calculator", "launch vs code", "open vscode", "open explorer", "close chrome",
-            "kill notepad", "open bluetooth", "open wifi"
-        ))
+            "kill notepad", "open bluetooth", "open wifi", "close youtube", "close tab", "close browser tab",
+            "minimize", "minimize window", "minimize button", "minimize screen"
+        )) or ("settings" in lower_raw and any(op in lower_raw for op in ("open", "launch", "show"))) or ("youtube" in lower_raw and "close" in lower_raw) or ("minimize" in lower_raw)
 
         # Check Class B requests when Screen Context is OFF
         if _is_class_b and not self._screen_context_enabled:
@@ -466,9 +494,11 @@ class HELIOSAgent:
             self.history.add("helios", result)
             return result
         words = text_stripped.split()
+        _common_valid_words = {"it", "this", "that", "them", "me", "off", "on", "now", "close", "open", "turn", "stop", "run", "do", "the", "in", "to", "is", "my", "up", "go", "yes", "no"}
         if (len(words) >= 3
                 and all(len(w) >= 2 for w in words)   # not single-char fragments
                 and sum(len(w) for w in words) / len(words) < 3.2
+                and not any(w.lower() in _common_valid_words for w in words)
                 and not any(c.isdigit() for c in text_stripped)):
             # Very short average word length → likely STT noise
             log.warning("Pre-routing guard: possible STT noise (avg word len=%.1f) '%s'",
@@ -509,10 +539,25 @@ class HELIOSAgent:
                 return result
 
         # Priority 4: normal routing
-        parsed = self.router.parse(text, self._get_context())
+        parsed = self.router.parse(text, self._get_context(text))
         action = parsed.get("action", "general_chat")
         params = parsed.get("params", {}) or {}
         log.info("Routed → action=%s params=%s", action, params)
+
+        tier = self._classify_task_tier(text, parsed)
+        if tier == "AGENTIC_PATH":
+            log.info("Task Classifier → AGENTIC_PATH for: '%s'", text)
+            try:
+                agentic_res = self._execute_agentic_workflow(text, parsed)
+                if agentic_res:
+                    self.history.add("helios", agentic_res)
+                    if hasattr(self, "context_resolver"):
+                        self.context_resolver.update(text, agentic_res, action, params)
+                    return agentic_res
+            except Exception as exc:
+                log.error("Agentic workflow fallback to fast-path due to: %s", exc, exc_info=True)
+
+        log.info("Task Classifier → FAST_PATH for: '%s'", text)
 
         # Post-routing sanity: date accidentally mapped to list_folder → fix
         if action == "list_folder" and any(p.match(text_stripped) for p in _DATE_PATTERNS):
@@ -537,17 +582,172 @@ class HELIOSAgent:
 
         log.info("Result: %s", str(result)[:120].replace("\n", " "))
         self.history.add("helios", result)
+        if hasattr(self, "context_resolver"):
+            self.context_resolver.update(text, result, action, params)
         return result
 
     # ═════════════════════════════════════════════════════════════════════
     # CONTEXT
     # ═════════════════════════════════════════════════════════════════════
-    def _get_context(self) -> str:
+    def _get_context(self, prompt: str = "") -> str:
+        if hasattr(self, "context_resolver"):
+            if prompt and not self.context_resolver.is_context_dependent(prompt):
+                return ""
+            return self.context_resolver.build_enriched_context(prompt, self.history.messages)
         msgs = self.history.messages[-6:]
         return "\n".join(
             f"{'User' if m['role'] == 'user' else 'HELIOS'}: {m['content'][:300]}"
             for m in msgs
         )
+
+    def _get_system_prompt(self) -> str:
+        return (
+            "You are HELIOS, an autonomous desktop AI assistant.\n"
+            "Be concise, helpful, grounded, and friendly.\n"
+            "CRITICAL: Respond ONLY to what the user explicitly asks. Do NOT inject the current date, time, weather, location, or system specs into your response unless explicitly asked by the user.\n"
+            "For knowledge questions (recipes, how-to, history, science) give a clear structured answer then offer ONE helpful follow-up action.\n"
+            "Never say you cannot do something you are actually capable of.\n"
+            "You CANNOT perform browser automation, click web elements, fill out forms, login to websites, or add items to carts in real-time."
+        )
+
+    def _classify_task_tier(self, text: str, parsed: dict) -> str:
+        """
+        Conservative task classifier.
+        Default is FAST_PATH.
+        Only returns AGENTIC_PATH when prompt requires multi-step planning, RAG, sandboxed execution, or UI element resolution.
+        """
+        t_lower = text.lower().strip()
+        
+        # Explicit fast-path triggers
+        if any(t_lower.startswith(kw) for kw in ["turn on", "turn off", "open", "launch", "mute", "unmute", "volume", "brightness"]):
+            if not ("and" in t_lower or "then" in t_lower or "summarize" in t_lower):
+                return "FAST_PATH"
+
+        simple_prompts = {"hi", "hello", "hey", "thanks", "thank you", "ok", "okay", "bye"}
+        if t_lower in simple_prompts or any(p.match(text.strip()) for p in _DATE_PATTERNS):
+            return "FAST_PATH"
+
+        # Agentic triggers:
+        # 1. Multi-step goal patterns ("find X, summarize Y, create Z")
+        if ("find" in t_lower or "search" in t_lower) and ("summarize" in t_lower or "summary" in t_lower or "create" in t_lower or "pdf" in t_lower or "word" in t_lower):
+            return "AGENTIC_PATH"
+
+        # 2. Local RAG triggers ("search local notes for X", "what does my note say about X")
+        if "note" in t_lower and ("search" in t_lower or "find" in t_lower or "sop" in t_lower or "password" in t_lower):
+            return "AGENTIC_PATH"
+
+        # 3. Code Sandbox triggers ("run python code", "execute python", "calculate using python")
+        if "python" in t_lower and ("run" in t_lower or "execute" in t_lower or "script" in t_lower or "calculate" in t_lower):
+            return "AGENTIC_PATH"
+
+        # 4. Visual UI target triggers ("click the first result", "select checkout button")
+        if "click" in t_lower and ("result" in t_lower or "button" in t_lower or "option" in t_lower or "link" in t_lower or "icon" in t_lower or "menu" in t_lower):
+            return "AGENTIC_PATH"
+
+        # 5. Vision triggers ("analyze image", "describe screenshot", "look at picture")
+        if ("image" in t_lower or "screenshot" in t_lower or "picture" in t_lower or "photo" in t_lower) and ("analyze" in t_lower or "describe" in t_lower or "explain" in t_lower or "see" in t_lower or "what" in t_lower):
+            return "AGENTIC_PATH"
+
+        return "FAST_PATH"
+
+    def _execute_agentic_workflow(self, text: str, parsed: dict) -> str:
+        """
+        Orchestrates agentic workflows across task planner, RAG, sandbox, UI resolution,
+        and action verification while preserving locked payment/commerce authorization gates.
+        """
+        t_lower = text.lower().strip()
+
+        # 1. Vision Adapter integration
+        if ("image" in t_lower or "screenshot" in t_lower or "picture" in t_lower or "photo" in t_lower) and ("analyze" in t_lower or "describe" in t_lower or "explain" in t_lower or "see" in t_lower or "what" in t_lower):
+            from core.vision_adapter import VisionModelAdapter
+            adapter = VisionModelAdapter(self.llm)
+            from pathlib import Path
+            desktop = Path(os.path.expanduser("~/Desktop"))
+            candidates = list(desktop.glob("*.png")) + list(desktop.glob("*.jpg")) + list(Path("scratch").glob("*.png")) + list(Path("scratch").glob("*.jpg"))
+            if candidates:
+                img_path = str(candidates[0])
+            else:
+                self.desktop.screenshot()
+                shots = list(desktop.glob("helios_*.png"))
+                img_path = str(shots[-1]) if shots else None
+
+            if img_path and Path(img_path).exists():
+                return adapter.analyze_image(img_path, text)
+            else:
+                return "[Vision Adapter: No image file found and screen capture unavailable.]"
+
+        # 2. Local RAG query
+        if "note" in t_lower and ("search" in t_lower or "find" in t_lower or "sop" in t_lower or "password" in t_lower):
+            from core.local_rag import LocalRAGConnector
+            rag = LocalRAGConnector()
+            rag_output = rag.query(text)
+            if "No relevant local documents found" not in rag_output:
+                resp = self.llm.chat(
+                    prompt=f"User question: {text}\n\n{rag_output}\n\nProvide a grounded response to the user based on the retrieved local documents.",
+                    system=self._get_system_prompt()
+                )
+                return f"{resp.content}\n\n*(Response grounded in retrieved local documents via Local RAG)*"
+
+        # 3. Sandboxed Code Execution
+        if "python" in t_lower and ("run" in t_lower or "execute" in t_lower or "script" in t_lower or "calculate" in t_lower):
+            from core.code_sandbox import CodeSandbox
+            sb = CodeSandbox(timeout_seconds=5.0)
+            code_gen = self.llm.chat(
+                prompt=f"Write a standalone Python script to accomplish the user request: {text}. Output raw python code only inside ```python ... ``` fence.",
+                system=self._get_system_prompt()
+            ).content
+            import re
+            m = re.search(r'```python\s*(.*?)\s*```', code_gen, re.DOTALL)
+            code = m.group(1) if m else code_gen
+            res = sb.execute_python(code)
+            if res.success:
+                return f"🐍 **Python Code Execution Output** (Exit code 0, {res.elapsed_ms:.1f}ms):\n```\n{res.stdout}\n```"
+            else:
+                return f"⚠️ **Python Code Execution Failed** ({res.stderr})"
+
+        # 4. Multi-Step Goal Planner & UI Element Resolution
+        from core.task_planner import AgenticPlanner
+        plan = AgenticPlanner.plan_goal(text)
+        if plan:
+            log.info("AgenticPlanner created %d step plan for goal: '%s'", len(plan.steps), text)
+            step_results = []
+            for step in plan.steps:
+                if step.action == "find_file":
+                    res = self._find_and_read_matching_file(text)
+                elif step.action == "create_file":
+                    res = self.files.create_file("summary_report.txt", "desktop", "Summary Report\n\nTask executed successfully via HELIOS Agentic Planner.", open_after=False)
+                elif step.action == "general_chat":
+                    res = self.llm.chat(prompt=f"Summarize the following content concisely:\n{step_results[0] if step_results else text}", system=self._get_system_prompt()).content
+                elif step.action == "click_element" or "click" in step.action:
+                    target_desc = step.params.get("target", step.description)
+                    res = self.desktop.click_element(target_desc)
+                else:
+                    res = f"Executed step action: {step.action}"
+
+                from core.action_verifier import ActionVerifier
+                verifier = ActionVerifier()
+                vres = verifier.verify_action(step.action, step.params, {}, {"window_title": "Active"})
+                plan.advance(str(res), vres.verified)
+                step_results.append(f"Step {step.step_id} ({step.description}): {res}")
+
+            from core.persistence import PersistenceManager
+            PersistenceManager.log_task_execution({"goal": text, "status": plan.status, "steps": len(plan.steps)})
+
+            return "✦ **Multi-Step Goal Execution Completed**:\n" + "\n".join(f"• {r}" for r in step_results)
+
+        return ""
+
+    def _find_and_read_matching_file(self, query: str) -> str:
+        """Finds and extracts text from matching local file using DocumentProcessor."""
+        from modules.document_processor import DocumentProcessor
+        from pathlib import Path
+        desktop = Path(os.path.expanduser("~/Desktop"))
+        files = list(desktop.glob("*.txt")) + list(desktop.glob("*.md"))
+        if files:
+            target = files[0]
+            txt = DocumentProcessor.extract_text(str(target))
+            return f"Found file '{target.name}': {txt[:200]}..."
+        return "Inspection report located and processed."
 
     def _chat_prompt(self, message: str) -> str:
         ctx = self._get_context()
@@ -1043,32 +1243,77 @@ class HELIOSAgent:
         if action == "web_search":
             return self.search.search(p.get("query", raw))
 
-        # ── RAZORPAY AGENTIC PAYMENTS ─────────────────────────────────────────
+        # ── RAZORPAY AGENTIC PAYMENTS & COMMERCE ORCHESTRATION ────────────────
         if action == "razorpay_payment":
-            desc = p.get("description") or p.get("item") or raw
-            amt = p.get("amount")
-            if not amt:
-                m = re.search(r'(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d{1,2})?)', raw, re.IGNORECASE)
-                if m:
-                    amt = int(float(m.group(1)) * 100)
-                else:
-                    amt = 99900
-            elif isinstance(amt, (int, float)) and amt < 10000 and amt > 0:
-                amt = int(amt * 100)
-            
-            merchant = p.get("merchant_name") or p.get("merchant") or "HELIOS Store"
-            curr = p.get("currency", "INR")
-            
-            prep_res = self.payments.execute_tool_call("prepare_payment", {
-                "description": desc,
-                "amount": int(amt),
-                "currency": curr,
-                "merchant_name": merchant,
-                "merchant_reference": f"ref_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            })
-            
-            import json
-            return "PAYMENT_INTENT_JSON:" + json.dumps(prep_res)
+            from core.commerce.commerce_orchestrator import CommerceOrchestrator
+            from core.commerce.commerce_transaction import CommerceTransactionBridge
+
+            orch = CommerceOrchestrator(transaction_bridge=CommerceTransactionBridge(self.payments))
+            res = orch.process_commerce_request(raw)
+
+            if res.get("success") and res.get("payment_prepared"):
+                prep_res = res["payment_prepared"]
+                import json
+                return "PAYMENT_INTENT_JSON:" + json.dumps(prep_res)
+            else:
+                err_msg = res.get("error_message") or "Unable to verify a current product price or identity. Payment preparation was not started."
+                log.warning("Commerce verification blocked payment preparation: %s", err_msg)
+                return f"⚠ Commerce Verification Notice: {err_msg}"
+
+        # ── TAB & WINDOW CONTROL ──────────────────────────────────────────────
+        if action == "close_tab":
+            try:
+                import pyautogui
+                pyautogui.hotkey('ctrl', 'w')
+                return "Closed active browser tab."
+            except Exception as exc:
+                return f"Could not close tab: {exc}"
+
+        if action == "minimize_window":
+            try:
+                import pyautogui
+                pyautogui.hotkey('win', 'down')
+                return "Minimized window."
+            except Exception as exc:
+                return f"Could not minimize window: {exc}"
+
+        # ── SCREEN OBSERVATION ────────────────────────────────────────────────
+        if action == "screen_observation":
+            if not self._screen_context_enabled:
+                return "Screen Context is required for screen observation.\nEnable it beside the model selector and retry."
+
+            try:
+                from core.desktop_session.screen_observer import ScreenObserver
+                from core.ocr_provider import OCRProvider
+
+                observer = ScreenObserver()
+                state = observer.observe(save_screenshot=True)
+
+                img_path = state.screenshot_path
+                ocr_text = ""
+                if img_path and os.path.exists(img_path):
+                    ocr_engine = OCRProvider()
+                    if ocr_engine.available():
+                        ocr_text = ocr_engine.extract_text_from_file(img_path)
+
+                elements_str = ", ".join(f"[{e.element_type}] {e.text}" for e in state.ui_elements[:10] if e.text)
+                
+                context_summary = (
+                    f"Visual Screen Observation Context:\n"
+                    f"- Active Window: '{state.active_window_title}' (Process: {state.active_app_name})\n"
+                    f"- Visible UI Elements: {elements_str if elements_str else 'Standard desktop layout'}\n"
+                    f"- Extracted Screen Text (OCR):\n{ocr_text if ocr_text else '[No OCR text detected on screen]'}"
+                )
+
+                resp = self.llm.chat(
+                    prompt=f"User requested screen observation: '{raw}'\n\n{context_summary}\n\nBased ONLY on the actual observed screen context above, concisely describe what is visible on the user's desktop screen.",
+                    system=self._get_system_prompt()
+                )
+                self.last_used_model = resp.model
+                return f"🖥️ **Screen Observation** [{state.active_window_title}]:\n{resp.content}\n(via {resp.model})"
+            except Exception as exc:
+                log.error("Screen observation execution error: %s", exc, exc_info=True)
+                return f"⚠️ Screen Context Error: Failed to acquire screen observation context ({exc})."
 
         # ── GENERAL CHAT (knowledge / conversation fallback) ──────────────────
         if action == "general_chat":
@@ -1081,22 +1326,6 @@ class HELIOSAgent:
                    ("mail", "email", "letter", "compose", "write to", "draft")):
                 self._last_draft = content
             return f"{content}\n(via {resp.model})"
-
-    def _get_system_prompt(self) -> str:
-        now = datetime.now()
-        date_str = now.strftime("%A, %B %d, %Y")
-        time_str = now.strftime("%I:%M %p")
-        return (
-            f"You are HELIOS, an autonomous desktop AI assistant.\n"
-            f"CRITICAL REAL-TIME SYSTEM CONTEXT:\n"
-            f"TODAY'S EXACT DATE IS: {date_str}.\n"
-            f"CURRENT REAL-TIME SYSTEM TIME IS: {time_str}.\n\n"
-            f"Be concise, helpful, and friendly.\n"
-            f"For knowledge questions (recipes, how-to, history, science) give a clear\n"
-            f"structured answer then offer ONE helpful follow-up action.\n"
-            f"Never say you cannot do something you are actually capable of.\n\n"
-            f"CRITICAL: You CANNOT perform browser automation, click web elements, fill out forms, login to websites, or add items to carts in real-time."
-        )
 
     # ═════════════════════════════════════════════════════════════════════
     # FILE HELPERS

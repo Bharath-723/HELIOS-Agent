@@ -21,10 +21,11 @@ log = logging.getLogger("helios.llm")
 
 
 class LLMProvider(Enum):
-    LOCAL  = "local"
-    GPT    = "gpt"
-    GEMINI = "gemini"
-    GROQ   = "groq"
+    LOCAL      = "local"
+    GPT        = "gpt"
+    GEMINI     = "gemini"
+    GROQ       = "groq"
+    OPENROUTER = "openrouter"
 
 
 @dataclass
@@ -39,7 +40,12 @@ class LLMResponse:
 ONLINE_TRIGGERS = [
     "latest news", "current weather", "weather in",
     "stock price", "search the web", "live score",
-    "real-time", "look up online",
+    "real-time", "look up online", "search", "online",
+    "shopping", "amazon", "flipkart", "platform", "buy",
+    "price", "compare", "deal", "discount", "store",
+    "google", "youtube", "web", "internet", "http", "www",
+    "site", "website", "url", "browser", "least amount",
+    "cheapest", "find"
 ]
 
 
@@ -50,7 +56,7 @@ class HybridLLM:
     def __init__(self):
         self.ollama_url   = environment_manager.get("OLLAMA_BASE_URL", "http://localhost:11434")
         self.ollama_model = environment_manager.get("OLLAMA_MODEL", "gemma3")
-        self.mode         = environment_manager.get("LLM_MODE", "offline").lower()
+        self.mode         = environment_manager.get("LLM_MODE", "auto").lower()
 
         # OpenAI
         self.openai_key   = environment_manager.get("OPENAI_API_KEY", "")
@@ -64,7 +70,12 @@ class HybridLLM:
         self.groq_key     = environment_manager.get("GROQ_API_KEY", "")
         self.groq_model   = environment_manager.get("GROQ_MODEL", "groq/compound-mini")
 
-        # Which cloud to use: "gemini", "groq", or "gpt"
+        # OpenRouter Cloud
+        self.openrouter_key     = environment_manager.get("OPENROUTER_API_KEY", "")
+        self.openrouter_model   = environment_manager.get("OPENROUTER_MODEL", "openrouter/free")
+        self.openrouter_enabled = environment_manager.get("OPENROUTER_ENABLED", "false").lower() == "true"
+
+        # Which cloud to use: "gemini", "groq", "gpt", or "openrouter"
         self.cloud_provider = environment_manager.get("CLOUD_PROVIDER", "gemini").lower()
 
     # ── Runtime control ───────────────────────────────────────────────────
@@ -82,6 +93,10 @@ class HybridLLM:
             self.openai_model = model
             self.cloud_provider = "gpt"
             self.active_cloud_model = model
+        elif m.startswith("openrouter") or m.startswith("or"):
+            self.openrouter_model = model
+            self.cloud_provider = "openrouter"
+            self.active_cloud_model = model
         else:
             self.ollama_model = model
             self.active_cloud_model = None
@@ -94,19 +109,17 @@ class HybridLLM:
 
     def get_available_models(self) -> list:
         local = []
-        try:
-            r = requests.get(f"{self.ollama_url}/api/tags", timeout=4)
-            local = list(dict.fromkeys(
-                m["name"].split(":")[0] for m in r.json().get("models", [])))
-        except Exception:
-            pass
+        if self._ollama_alive():
+            local = [self.ollama_model]
         cloud = []
-        if self._has_gemini_key() and self._test_gemini_working():
+        if self._has_gemini_key():
             cloud += ["gemini-3.6-flash"]
-        if self._has_groq_key() and self._test_groq_working():
+        if self._has_groq_key():
             cloud += ["groq/compound-mini"]
-        if self._has_openai_key() and self._test_openai_working():
+        if self._has_openai_key():
             cloud += ["gpt-4o-mini"]
+        if self._has_openrouter_key():
+            cloud += [self.openrouter_model]
         return local + cloud
 
     def _test_gemini_working(self) -> bool:
@@ -139,9 +152,23 @@ class HybridLLM:
         except Exception:
             return False
 
+    def _test_openrouter_working(self) -> bool:
+        if not self._has_openrouter_key():
+            return False
+        try:
+            r = requests.get("https://openrouter.ai/api/v1/models",
+                             headers={"Authorization": f"Bearer {self.openrouter_key}"}, timeout=4)
+            return r.status_code == 200
+        except Exception:
+            return False
+
     def _has_groq_key(self) -> bool:
         k = self.groq_key
         return bool(k and k.startswith("gsk_") and len(k) > 15)
+
+    def _has_openrouter_key(self) -> bool:
+        k = self.openrouter_key
+        return bool(k and (k.startswith("sk-or-v1-") or len(k) > 15) and "your_" not in k)
 
     # ── Checks ────────────────────────────────────────────────────────────
     def _ollama_alive(self) -> bool:
@@ -166,7 +193,7 @@ class HybridLLM:
         return bool(k and len(k) > 10 and "your_" not in k)
 
     def _has_any_cloud_key(self) -> bool:
-        return self._has_gemini_key() or self._has_openai_key()
+        return self._has_gemini_key() or self._has_openai_key() or self._has_openrouter_key() or self._has_groq_key()
 
     def _needs_internet(self, prompt: str) -> bool:
         return any(t in prompt.lower() for t in ONLINE_TRIGGERS)
@@ -187,7 +214,7 @@ class HybridLLM:
         full = f"{system}\n\n{prompt}" if system else prompt
         t0 = time.time()
         
-        payload = {"model": self.ollama_model, "prompt": full, "stream": False}
+        payload = {"model": self.ollama_model, "prompt": full, "stream": False, "keep_alive": "1h"}
         max_attempts = 2
         
         for attempt in range(1, max_attempts + 1):
@@ -375,19 +402,75 @@ class HybridLLM:
             latency_ms=(time.time() - t0) * 1000,
         )
 
+    # ── OpenRouter inference ─────────────────────────────────────────────
+    def _call_openrouter(self, prompt: str, system: str = "") -> LLMResponse:
+        if not self._has_openrouter_key():
+            raise RuntimeError("No OpenRouter API key configured. Set OPENROUTER_API_KEY in .env")
+        t0 = time.time()
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_key}",
+            "HTTP-Referer": "https://helios.ai",
+            "X-Title": "HELIOS Desktop Agent",
+            "Content-Type": "application/json"
+        }
+        msgs = []
+        if system:
+            msgs.append({"role": "system", "content": system})
+        msgs.append({"role": "user", "content": prompt})
+
+        payload = {"model": self.openrouter_model, "messages": msgs, "max_tokens": 1024}
+        try:
+            r = requests.post(url, headers=headers, json=payload, timeout=30)
+        except Exception as exc:
+            raise RuntimeError(f"OpenRouter connection error: {exc}")
+
+        if r.status_code != 200:
+            err_msg = r.text.replace(self.openrouter_key, "[REDACTED]") if self.openrouter_key else r.text
+            raise RuntimeError(f"OpenRouter API error ({r.status_code}): {err_msg}")
+
+        data = r.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        resolved_model = data.get("model", self.openrouter_model)
+
+        if self.openrouter_model == "openrouter/free":
+            log.info("OpenRouter resolved model: requested='openrouter/free', actual='%s'", resolved_model)
+
+        return LLMResponse(
+            content=content.strip(),
+            provider=LLMProvider.OPENROUTER,
+            model=resolved_model,
+            tokens_used=data.get("usage", {}).get("total_tokens", 0),
+            latency_ms=(time.time() - t0) * 1000,
+        )
+
     # ── Cloud dispatch ────────────────────────────────────────────────────
     def _call_cloud(self, prompt: str, system: str = "") -> LLMResponse:
-        if self.cloud_provider == "groq":
+        if self.cloud_provider == "openrouter":
+            try:
+                return self._call_openrouter(prompt, system)
+            except Exception as e:
+                log.warning("OpenRouter provider error: %s. Attempting fallback.", e)
+                if self._has_gemini_key():
+                    return self._call_gemini(prompt, system)
+                if self._has_groq_key():
+                    return self._call_groq(prompt, system)
+                raise
+        elif self.cloud_provider == "groq":
             try:
                 return self._call_groq(prompt, system)
             except Exception:
                 if self._has_gemini_key():
                     return self._call_gemini(prompt, system)
+                if self._has_openrouter_key():
+                    return self._call_openrouter(prompt, system)
                 raise
         elif self.cloud_provider == "gemini":
             try:
                 return self._call_gemini(prompt, system)
             except Exception:
+                if self._has_openrouter_key():
+                    return self._call_openrouter(prompt, system)
                 if self._has_groq_key():
                     return self._call_groq(prompt, system)
                 if self._has_openai_key():
@@ -399,16 +482,40 @@ class HybridLLM:
             except Exception:
                 if self._has_gemini_key():
                     return self._call_gemini(prompt, system)
+                if self._has_openrouter_key():
+                    return self._call_openrouter(prompt, system)
                 raise
 
     # ── Main API ──────────────────────────────────────────────────────────
     def chat(self, prompt: str, system: str = "") -> LLMResponse:
-        if self._use_cloud(prompt):
+        if self._use_cloud(prompt) or not self._ollama_alive():
+            if self._has_any_cloud_key():
+                try:
+                    res = self._call_cloud(prompt, system)
+                except Exception:
+                    res = self._call_local(prompt, system)
+            else:
+                res = self._call_local(prompt, system)
+        else:
             try:
-                return self._call_cloud(prompt, system)
+                res = self._call_local(prompt, system)
             except Exception:
-                return self._call_local(prompt, system)
-        return self._call_local(prompt, system)
+                if self._has_any_cloud_key():
+                    res = self._call_cloud(prompt, system)
+                else:
+                    raise
+
+        if res and res.content:
+            import re
+            cleaned = res.content.strip()
+            while True:
+                m = re.match(r'^(HELIOS|Assistant|Bot|AI|Model)\s*[:\-]\s*', cleaned, re.IGNORECASE)
+                if m:
+                    cleaned = cleaned[m.end():].strip()
+                else:
+                    break
+            res.content = cleaned
+        return res
 
     def generate(self, prompt: str, system: str = "") -> str:
         """Alias returning raw content string for agent controllers."""
@@ -422,14 +529,16 @@ class HybridLLM:
 
     def status(self) -> dict:
         return {
-            "ollama_alive":     self._ollama_alive(),
-            "internet":         self._internet_ok(),
-            "mode":             self.mode,
-            "local_model":      self.ollama_model,
-            "cloud_provider":   self.cloud_provider,
-            "gemini_model":     self.gemini_model,
-            "openai_model":     self.openai_model,
-            "has_gemini_key":   self._has_gemini_key(),
-            "has_openai_key":   self._has_openai_key(),
-            "available_models": self.get_available_models(),
+            "ollama_alive":       self._ollama_alive(),
+            "internet":           self._internet_ok(),
+            "mode":               self.mode,
+            "local_model":        self.ollama_model,
+            "cloud_provider":     self.cloud_provider,
+            "gemini_model":       self.gemini_model,
+            "openai_model":       self.openai_model,
+            "openrouter_model":   self.openrouter_model,
+            "has_gemini_key":     self._has_gemini_key(),
+            "has_openai_key":     self._has_openai_key(),
+            "has_openrouter_key": self._has_openrouter_key(),
+            "available_models":   self.get_available_models(),
         }

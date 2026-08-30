@@ -33,7 +33,14 @@ class CommerceTransactionBridge:
             "amount": cost.total_paise,
             "currency": cost.currency,
             "merchant_name": recommendation.selected_candidate.merchant,
-            "merchant_reference": f"comm_ref_{recommendation.selected_candidate.candidate_id}"
+            "merchant_reference": f"comm_ref_{recommendation.selected_candidate.candidate_id}",
+            "metadata": {
+                "quantity": cost.quantity,
+                "unit_price_inr": cost.unit_price_inr or (cost.item_price_inr / max(1, cost.quantity)),
+                "reason": recommendation.reason,
+                "source_url": recommendation.selected_candidate.source_url,
+                "candidate_id": recommendation.selected_candidate.candidate_id,
+            }
         })
 
         return res

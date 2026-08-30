@@ -143,6 +143,28 @@ class ScoreEngine:
 
         total_utility = contrib_p + contrib_f + contrib_cx + contrib_l + contrib_c
 
+        # Additive Capability Tag Match Evaluation (Phase 1A)
+        static_cap = self.capabilities.get(model_name, {})
+        model_caps = set(static_cap.get("capabilities", []))
+        if model_caps:
+            # Check if features require specific capability tags
+            req_caps = set()
+            if getattr(features, "requires_internet", False) and getattr(features, "freshness_score", 0.0) > 0.8:
+                req_caps.add("web_search")
+            if getattr(features, "requires_coding", False):
+                req_caps.add("coding")
+            if getattr(features, "requires_vision", False):
+                req_caps.add("vision")
+            
+            # If required capability is present, add small capability boost (+0.05)
+            if req_caps:
+                matched = req_caps.intersection(model_caps)
+                if matched:
+                    total_utility += 0.05 * len(matched)
+                elif "vision" in req_caps and "vision" not in model_caps:
+                    # Incapable of requested vision feature
+                    total_utility *= 0.50
+
         return {
             "total_utility": total_utility,
             "breakdown": {

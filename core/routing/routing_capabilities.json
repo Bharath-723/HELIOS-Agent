@@ -5,7 +5,8 @@
     "freshness": 0.20,
     "complexity": 0.75,
     "latency": 0.85,
-    "cost": 1.00
+    "cost": 1.00,
+    "capabilities": ["text_reasoning", "document", "general_chat"]
   },
   "mistral": {
     "type": "local",
@@ -13,7 +14,8 @@
     "freshness": 0.15,
     "complexity": 0.70,
     "latency": 0.80,
-    "cost": 1.00
+    "cost": 1.00,
+    "capabilities": ["text_reasoning", "coding", "general_chat"]
   },
   "gemini-3.6-flash": {
     "type": "cloud",
@@ -21,7 +23,8 @@
     "freshness": 1.00,
     "complexity": 0.95,
     "latency": 0.60,
-    "cost": 0.25
+    "cost": 0.25,
+    "capabilities": ["text_reasoning", "vision", "document", "coding", "web_search"]
   },
   "gpt-4": {
     "type": "cloud",
@@ -29,6 +32,16 @@
     "freshness": 1.00,
     "complexity": 0.98,
     "latency": 0.50,
-    "cost": 0.15
+    "cost": 0.15,
+    "capabilities": ["text_reasoning", "coding", "vision", "complex_reasoning"]
+  },
+  "openrouter/free": {
+    "type": "cloud",
+    "privacy": 0.35,
+    "freshness": 1.00,
+    "complexity": 0.90,
+    "latency": 0.65,
+    "cost": 0.00,
+    "capabilities": ["text_reasoning", "coding", "document", "general_chat"]
   }
 }

@@ -87,6 +87,28 @@ class CommerceOrchestrator:
         context.state = CommerceState.COMPARING
         trace.record_step("Candidate Comparison", CommerceState.COMPARING.value, comparison.to_dict())
 
+        if comparison.evaluation_matrix.get("ambiguous"):
+            context.state = CommerceState.RECOMMENDATION_FAILED
+            context.error_message = "Multiple matching candidates found. Please specify the exact model (e.g. Logitech K380 or Logitech K120) to prepare payment."
+            return {
+                "success": False,
+                "commerce_id": commerce_id,
+                "context": context.to_dict(),
+                "error_message": context.error_message,
+                "type": "AMBIGUOUS_MODEL_SELECTION"
+            }
+
+        if not comparison.candidates or not comparison.best_candidate_id:
+            context.state = CommerceState.RESEARCH_FAILED
+            context.error_message = f"The requested product '{intent.target_item}' could not be verified. Payment preparation was not started."
+            return {
+                "success": False,
+                "commerce_id": commerce_id,
+                "context": context.to_dict(),
+                "error_message": context.error_message,
+                "type": "RESEARCH_FAILED"
+            }
+
         # 4. RECOMMENDING
         recommendation = CommerceRecommender.recommend(intent, comparison)
         context.recommendation = recommendation
@@ -95,7 +117,7 @@ class CommerceOrchestrator:
 
         if not recommendation:
             context.state = CommerceState.RECOMMENDATION_FAILED
-            context.error_message = "Failed to formulate explainable recommendation."
+            context.error_message = "The requested product could not be verified. Payment preparation was not started."
             return {"success": False, "commerce_id": commerce_id, "context": context.to_dict()}
 
         # Check if user requested information only or explicitly requested NO buy
@@ -136,7 +158,7 @@ class CommerceOrchestrator:
             }
 
         # 6. CALCULATING
-        cost = CommerceCalculator.calculate(verified_cand)
+        cost = CommerceCalculator.calculate(verified_cand, quantity=intent.quantity)
         context.cost = cost
         context.state = CommerceState.CALCULATING
         trace.record_step("Cost Calculation", CommerceState.CALCULATING.value, cost.to_dict())

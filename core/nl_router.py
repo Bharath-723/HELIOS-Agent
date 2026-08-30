@@ -61,6 +61,8 @@ RULE 19 — If the user says something like "its wrong", "that's wrong", "same w
 
 RULE 20 — Natural language payment execution requests ("pay ₹500", "buy this course for ₹999", "purchase this item", "make the payment", "checkout", "complete my purchase") → razorpay_payment. Informational/history queries ("what is the price", "how much did I pay", "show previous payments") → general_chat.
 
+RULE 21 — "open settings" / "open system settings" / "open settings please" / "settings" → open_settings with params: {} (NEVER page: "wifi" or "bluetooth" unless explicitly requested).
+
 ════════════════════════════════════════════════
 ACTIONS:
 ════════════════════════════════════════════════
@@ -275,6 +277,45 @@ class NLRouter:
         if any(re.search(p, _sl) for p in _CORRECTION_PATTERNS):
             log.info("parse shortcut: correction phrase '%s' → general_chat", _stripped)
             return {"action": "general_chat", "params": {"message": _stripped}}
+
+        # Fast Window & Tab Control shortcuts
+        if any(kw in _sl for kw in ("close youtube", "close tab", "close browser tab", "close chrome tab")):
+            log.info("parse shortcut: close tab request '%s' → close_tab", _stripped)
+            return {"action": "close_tab", "params": {}}
+
+        if any(kw in _sl for kw in ("minimize button", "minimize window", "minimize screen", "minimize chrome")):
+            log.info("parse shortcut: minimize window request '%s' → minimize_window", _stripped)
+            return {"action": "minimize_window", "params": {}}
+
+        # Fast Screen Observation shortcut (Semantic intent normalization)
+        _SCREEN_OBS_PATS = [
+            r'\b(what|tell|can you|describe|show)\b.*\b(see|look|visible|inspect|observe)\b.*\b(screen|desktop|display|window|computer)\b',
+            r'\b(what\'?s|what is)\s+(currently\s+)?(open|visible|on\s+my\s+(screen|desktop|display))\b',
+            r'\b(look at|inspect|observe)\s+my\s+(screen|desktop|display)\b',
+            r'\bcan you (see|observe|look at|inspect)\s+my\s+(screen|desktop|display)\b',
+            r'\bwhat do you see\b',
+            r'\bwhat can you see\b',
+            r'\bdescribe my desktop\b',
+            r'\btell me what you see\b'
+        ]
+        if any(re.search(p, _sl) for p in _SCREEN_OBS_PATS):
+            log.info("parse shortcut: screen observation query '%s' → screen_observation", _stripped)
+            return {"action": "screen_observation", "params": {"query": _stripped}}
+
+        # Fast Settings routing shortcut (Deterministic intent resolution)
+        _settings_gen_pat = re.compile(r'^(?:please\s+)?open\s+(?:the\s+|system\s+)?settings(?:\s+please|\s+only|\s+and\s+nothing\s+else)?$', re.I)
+        if _settings_gen_pat.match(_stripped) or _stripped.lower() in ("settings", "system settings", "windows settings"):
+            log.info("parse shortcut: generic settings '%s' → open_settings(params={})", _stripped)
+            return {"action": "open_settings", "params": {}}
+
+        _settings_spec_pat = re.compile(r'^(?:please\s+)?open\s+(?:the\s+)?(wi\-?fi|bluetooth|display|sound|network|battery|updates|airplane|storage|nightlight)\s+settings(?:\s+please)?$', re.I)
+        _spec_match = _settings_spec_pat.match(_stripped)
+        if _spec_match:
+            spec_target = _spec_match.group(1).lower().replace("-", "")
+            if spec_target == "network":
+                spec_target = "wifi"
+            log.info("parse shortcut: specific settings '%s' → open_settings(params={'page': '%s'})", _stripped, spec_target)
+            return {"action": "open_settings", "params": {"page": spec_target}}
 
         # Programmatic shortcut for attached files conversion to PDF
         # NOTE: We intentionally do NOT search context for attachment tags.

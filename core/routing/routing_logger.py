@@ -45,5 +45,7 @@ class RoutingLogger:
         try:
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(log_entry) + "\n")
+            from core.persistence import PersistenceManager
+            PersistenceManager.log_routing_event(log_entry)
         except Exception as exc:
             log.error("Failed to write structured route trace to log file: %s", exc)

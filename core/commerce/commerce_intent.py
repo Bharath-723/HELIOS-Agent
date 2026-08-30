@@ -53,9 +53,9 @@ class CommerceIntentClassifier:
 
         # Extract budget constraint (e.g. under ₹2000, for ₹500, under 1000)
         budget = CommerceIntentClassifier._extract_budget(raw)
-
-        # Extract target item description
+        quantity = CommerceIntentClassifier._extract_quantity(raw)
         target_item = CommerceIntentClassifier._extract_target_item(raw)
+        requested_model = CommerceIntentClassifier._extract_requested_model(raw)
 
         # Determine Category
         if explicit_no_buy or (is_question and not has_purchase_verb and "prepare" not in lower):
@@ -68,37 +68,83 @@ class CommerceIntentClassifier:
             category = CommerceIntentCategory.INFORMATION_ONLY
 
         constraints = CommerceIntentClassifier._extract_constraints(raw, budget)
+        if requested_model:
+            constraints.append(f"Model: {requested_model.upper()}")
 
         return CommerceIntent(
             raw_prompt=raw,
             category=category,
             target_item=target_item,
             budget_limit_inr=budget,
+            quantity=quantity,
+            requested_model=requested_model,
             explicit_purchase_requested=(category == CommerceIntentCategory.PURCHASE_REQUEST),
             explicit_no_buy=explicit_no_buy,
             extracted_constraints=constraints
         )
 
     @staticmethod
-    def _extract_budget(text: str) -> Optional[float]:
-        # Match patterns like: under ₹2000, under 2,000, for ₹500, max ₹1000, budget ₹1500
-        m = re.search(r'(?:under|below|for|within|max|budget(?: of)?|less than)?\s*(?:₹|rs\.?|inr)?\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)', text, re.IGNORECASE)
-        if m:
-            val_str = m.group(1).replace(',', '')
-            try:
-                val = float(val_str)
-                if val > 0:
-                    return val
-            except ValueError:
-                pass
+    def _extract_requested_model(text: str) -> Optional[str]:
+        # Match explicit model tokens e.g. K120, K380, M221, Key2, PS-301, C300, etc.
+        models = re.findall(r'\b(k120|k380|m221|key2|deuce|konnect c|[a-z]\d{2,4}|\d{3,4}[a-z]?)\b', text.lower())
+        if models:
+            # Avoid matching plain numbers like 499 or 100
+            for m in models:
+                if not m.isdigit():
+                    return m
         return None
 
     @staticmethod
+    def _extract_budget(text: str) -> Optional[float]:
+        # Match ONLY explicit price patterns (currency symbol OR explicit budget/price keyword)
+        # e.g., ₹499, Rs. 500, INR 1200, under 2000, for ₹499, priced at 500
+        pats = [
+            r'(?:₹|rs\.?|inr)\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)',
+            r'\b(?:under|below|within|max|budget(?: of)?|less than|around|priced at)\s*(?:₹|rs\.?|inr)?\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)\b',
+            r'\b(?:for|at)\s+(?:₹|rs\.?|inr)\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)\b'
+        ]
+        for pat in pats:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                val_str = m.group(1).replace(',', '')
+                try:
+                    val = float(val_str)
+                    if val > 0:
+                        return val
+                except ValueError:
+                    pass
+        return None
+
+    @staticmethod
+    def _extract_quantity(text: str) -> int:
+        # Match patterns like: 2 units, 3 pieces, purchase 2, buy 4
+        m_qty = re.search(r'\b(?:buy|purchase|order|get)\s+(\d{1,3})\b(?!\s*(?:rs|inr|rupees|rupee|\$))', text, re.IGNORECASE)
+        if m_qty:
+            try:
+                q = int(m_qty.group(1))
+                if 1 <= q <= 1000:
+                    return q
+            except ValueError:
+                pass
+        m_units = re.search(r'\b(\d{1,3})\s*(?:units?|pcs?|pieces?|pack|packs?)\b', text, re.IGNORECASE)
+        if m_units:
+            try:
+                q = int(m_units.group(1))
+                if 1 <= q <= 1000:
+                    return q
+            except ValueError:
+                pass
+        return 1
+
+    @staticmethod
     def _extract_target_item(text: str) -> str:
-        # Strip common action verbs & budget phrases to get item title
-        clean = re.sub(r'\b(find|search|compare|recommend|buy|purchase|pay|for|me|a|the|best|good|useful|item|product|under|below|within|rs\.?|inr|₹|\d+)\b', '', text, flags=re.IGNORECASE)
-        clean = re.sub(r'\s+', ' ', clean).strip()
-        return clean if clean else "Requested Item"
+        # Strip budget phrases first (e.g. for ₹499, under 2000, for 500, max 1000)
+        clean = re.sub(r'\b(?:under|below|within|max|budget(?: of)?|less than|priced at|for|at)\s*(?:₹|rs\.?|inr)?\s*\d+(?:,\d{3})*(?:\.\d{1,2})?\b', '', text, flags=re.IGNORECASE)
+        clean = re.sub(r'(?:₹|rs\.?|inr)\s*\d+(?:,\d{3})*(?:\.\d{1,2})?', '', clean, flags=re.IGNORECASE)
+        # Strip action verbs and generic keywords, preserving model names/numbers
+        clean = re.sub(r'\b(find|search|compare|recommend|buy|purchase|pay|checkout|order|prepare|the|payment|me|a|the|best|good|useful|item|product|units?|of|at|listed|price)\b', '', clean, flags=re.IGNORECASE)
+        clean = re.sub(r'\s+', ' ', clean).strip(' .,!?:;')
+        return clean if len(clean) >= 2 else "Requested Item"
 
     @staticmethod
     def _extract_constraints(text: str, budget: Optional[float]) -> List[str]:

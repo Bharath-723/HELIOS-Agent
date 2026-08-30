@@ -17,8 +17,8 @@ class CommerceComparator:
 
     @staticmethod
     def compare(intent: CommerceIntent, candidates: List[ProductCandidate]) -> ComparisonTable:
-        log.info("CommerceComparator: Comparing %d candidates for '%s'",
-                 len(candidates), intent.target_item)
+        log.info("CommerceComparator: Comparing %d candidates for '%s' (Requested Model: %s)",
+                 len(candidates), intent.target_item, intent.requested_model)
 
         if not candidates:
             return ComparisonTable(
@@ -28,6 +28,45 @@ class CommerceComparator:
                 best_candidate_id=None,
                 evaluation_matrix={}
             )
+
+        # ── 1. STRICT MODEL / SKU IDENTIFIER MATCHING ────────────────────────
+        req_model = intent.requested_model.lower() if intent.requested_model else None
+        if req_model:
+            model_matches = [
+                c for c in candidates 
+                if req_model in c.name.lower() or req_model in c.candidate_id.lower() or req_model in c.description.lower()
+            ]
+            if not model_matches:
+                log.warning("CommerceComparator: 0 candidates match requested model '%s'. Rejecting non-matching candidates.", req_model)
+                return ComparisonTable(
+                    target_item=intent.target_item,
+                    budget_limit_inr=intent.budget_limit_inr,
+                    candidates=[],
+                    best_candidate_id=None,
+                    evaluation_matrix={}
+                )
+            candidates = model_matches
+
+        # ── 2. FEATURE CONSTRAINT FILTERING (e.g. "wireless") ─────────────────
+        lower_prompt = intent.raw_prompt.lower()
+        if "wireless" in lower_prompt:
+            wireless_matches = [c for c in candidates if "wireless" in c.name.lower() or any("wireless" in f.lower() for f in c.features + c.constraints_satisfied)]
+            if wireless_matches:
+                candidates = wireless_matches
+
+        # ── 3. AMBIGUOUS REQUEST HANDLING (e.g. "Buy a Logitech keyboard") ────
+        # If user did NOT specify a model AND budget is unspecified AND prompt is brand-generic (e.g. "logitech keyboard"):
+        if not req_model and not intent.budget_limit_inr and any(kw in lower_prompt for kw in ("logitech keyboard", "dell keyboard", "hp keyboard")) and len(candidates) > 1:
+            distinct_names = set(c.name for c in candidates)
+            if len(distinct_names) > 1:
+                log.info("CommerceComparator: Ambiguous request for generic brand '%s'. Requiring explicit model selection.", intent.target_item)
+                return ComparisonTable(
+                    target_item=intent.target_item,
+                    budget_limit_inr=intent.budget_limit_inr,
+                    candidates=candidates,
+                    best_candidate_id=None,
+                    evaluation_matrix={"ambiguous": True}
+                )
 
         matrix = {}
         best_id = None

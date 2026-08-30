@@ -22,7 +22,8 @@ def _load_idx():
     if not INDEX.exists():
         return []
     try:
-        return json.loads(INDEX.read_text(encoding="utf-8"))
+        data = json.loads(INDEX.read_text(encoding="utf-8"))
+        return [s for s in data if s.get("message_count", 0) > 0 or (HIST_DIR / f"{s.get('id', '')}.json").exists()]
     except Exception as exc:
         log.error("Failed to load chat history index: %s", exc, exc_info=True)
         return []
@@ -30,7 +31,8 @@ def _load_idx():
 
 def _save_idx(sessions):
     try:
-        INDEX.write_text(json.dumps(sessions, indent=2, ensure_ascii=False), encoding="utf-8")
+        clean = [s for s in sessions if s.get("message_count", 0) > 0 or (HIST_DIR / f"{s.get('id', '')}.json").exists()]
+        INDEX.write_text(json.dumps(clean, indent=2, ensure_ascii=False), encoding="utf-8")
     except Exception as exc:
         log.error("Failed to save chat history index: %s", exc, exc_info=True)
 
@@ -40,17 +42,6 @@ class ChatHistory:
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.messages = []
         log.info("Initializing new ChatHistory session: %s", self.session_id)
-        try:
-            sessions = _load_idx()
-            sessions.insert(0, {
-                "id": self.session_id,
-                "started": datetime.now().isoformat(),
-                "title": f"Session {datetime.now().strftime('%b %d, %H:%M')}",
-                "preview": "", "message_count": 0,
-            })
-            _save_idx(sessions)
-        except Exception as exc:
-            log.error("Error creating ChatHistory session in __init__: %s", exc, exc_info=True)
 
     def add(self, role: str, content: str):
         log.debug("Adding message to session %s: role=%s", self.session_id, role)
@@ -63,13 +54,26 @@ class ChatHistory:
                 encoding="utf-8")
             
             sessions = _load_idx()
+            found = False
             for s in sessions:
                 if s["id"] == self.session_id:
-                    if role == "user" and not s["preview"]:
+                    if role == "user" and not s.get("preview"):
                         s["title"] = content[:40] + ("..." if len(content) > 40 else "")
                         s["preview"] = content[:80]
                     s["message_count"] = len(self.messages)
+                    found = True
                     break
+
+            if not found:
+                title = content[:40] + ("..." if len(content) > 40 else "") if role == "user" else f"Session {datetime.now().strftime('%b %d, %H:%M')}"
+                preview = content[:80] if role == "user" else ""
+                sessions.insert(0, {
+                    "id": self.session_id,
+                    "started": datetime.now().isoformat(),
+                    "title": title,
+                    "preview": preview,
+                    "message_count": len(self.messages),
+                })
             _save_idx(sessions)
         except Exception as exc:
             log.error("Error in ChatHistory.add: %s", exc, exc_info=True)
@@ -101,7 +105,7 @@ class ChatHistory:
         try:
             self.purge_expired()
             sessions = _load_idx()
-            return [s for s in sessions if not s.get("is_deleted")]
+            return [s for s in sessions if not s.get("is_deleted") and s.get("message_count", 0) > 0]
         except Exception as exc:
             log.error("Error in ChatHistory.get_all: %s", exc, exc_info=True)
             return []
