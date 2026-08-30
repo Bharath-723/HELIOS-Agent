@@ -96,7 +96,7 @@ class RoutingResult:
     constraints_triggered: List[str] = field(default_factory=list)
     algorithm_name: str = "CAHRA"
     algorithm_version: str = "CAHRA-v1.0"
-    strategy_name: str = "Capability-Aware Weighted Hybrid Routing"
+    strategy_name: str = "Context Aware Hybrid Routing Algorithm"
     decision_trace: Optional[DecisionTrace] = None
     candidate_ranking: List[str] = field(default_factory=list)
     best_candidate: str = ""

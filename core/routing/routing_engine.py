@@ -159,7 +159,7 @@ class RoutingEngine:
             constraints_triggered=triggered_constraints,
             algorithm_name="CAHRA",
             algorithm_version="CAHRA-v1.0",
-            strategy_name="Capability-Aware Weighted Hybrid Routing",
+            strategy_name="Context Aware Hybrid Routing Algorithm",
             decision_trace=trace,
             candidate_ranking=ranked_candidates,
             best_candidate=best_candidate,
