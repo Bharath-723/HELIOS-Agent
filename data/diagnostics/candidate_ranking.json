@@ -1,5 +1,7 @@
 {
   "candidate_ranking": [
+    "gemma3",
+    "mistral",
     "gemini-3.6-flash",
     "openrouter/free",
     "gpt-4"

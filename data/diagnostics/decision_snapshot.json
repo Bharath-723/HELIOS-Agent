@@ -1,54 +1,72 @@
 {
-  "prompt": "What is 15 * 12?",
+  "prompt": "Read the available local document and tell me the key safety procedure described in it. Ground your answer only in the document and identify the source used. If the document does not contain the requested information, say so instead of guessing.\n[ATTACHED FILE CONTENT (Emotion_Detection_Project_Documentation.pdf)]:\nNATURAL LANGUAGE PROCESSING LAB PROJECT\non\nEMOTION DETECTION USING SVM AND LOGISTIC REGRESSION\nSubmitted\nin partial fulfillment of the requirements for the award of the degree of\nBachelor of Technology\nin\nComputer Science and Engineering (AI & ML)\nBy\nSriram Parsi - 23261A6639\nPranav Siddhartha Tamada - 23261A6660\nM. Bharath - 24265A6604\nUnder the guidance of\nMS. A. SWAPNA (Asst. Professor)\nDepartment of Emerging Technologies\nMahatma Gandhi Institute of Technology (Autonomous)\n(Affiliated to Jawaharlal Nehru Technological University Hyderabad) Kokapet(V), Gandipet(M),\nHyderabad. Telangana - 500 075\n2025-26\nMAHATMA GANDHI INSTITUTE OF TECHNOLOGY (AUTONOMOUS)\n(Affiliated to Jawaharlal Nehru Technological University Hyderabad)\nGANDIPET, HYDERABAD - 500075, Telangana\nCERTIFICATE\nThis is to certify that the project entitled \"EMOTION DETECTION USING SVM AND LOGISTIC\nREGRESSION\" is being submitted by Sriram Parsi - 23261A6639, Pranav Siddhartha Tamada -\n23261A6660 & M. Bharath - 24265A6604 in partial fulfillment of the requirements for the Natural\nLanguage Processing Lab Project and is a record of bonafide work carried out by them under our\nguidance and supervision.\nThe results of the investigations enclosed in this report have been verified and found satisfactory.\nPROJECT GUIDE HEAD OF THE DEPARTMENT\nMs. A. SWAPNA (Asst. Professor) Dr. M. Ramabai\nDepartment of E.T Professor & HOD\nDepartment of ET\n\nExternal Examiner\nDECLARATION\nThis is to certify that the work reported in this project titled \"EMOTION DETECTION USING SVM AND\nLOGISTIC REGRESSION\" is a record of work done by us in the Department of Emerging\nTechnologies, Mahatma Gandhi Institute of Technology, Hyderabad.\nNo part of the work is copied from books/journals/internet and wherever the portion is taken, the same\nhas been duly referred to in the text. The report is based on the work done entirely by us and not copied\nfrom any other source.\nSriram Parsi - 23261A6639\nPranav Siddhartha Tamada - 23261A6660\nM. Bharath - 24265A6604\nACKNOWLEDGEMENT\nThe satisfaction that accompanies the successful completion of any task would be incomplete without\nthe mention of people who made it possible. We acknowledge all those whose guidance and\nencouragement served as a beacon of light and crowned our efforts with success.\nWe would like to express our sincere thanks to Prof. G. Chandra Mohan Reddy, Principal, MGIT, for\nproviding the working facilities in college.\nWe wish to express our sincere thanks and gratitude to Dr. M. Ramabai, Professor and HoD,\nDepartment of Emerging Technologies, MGIT, for all the timely support and valuable suggestions\nduring the period of the project.\nWe are extremely thankful and indebted to our internal guide and mentor Ms. A. SWAPNA, Assistant\nProfessor, Department of Emerging Technologies, for her constant guidance, encouragement, and\nmoral support throughout the project.\nFinally, we would also like to thank all the faculty and staff of the Emerging Technologies Department\nwho helped us directly or indirectly to complete this project.\nSriram Parsi - 23261A6639\nPranav Siddhartha Tamada - 23261A6660\nM. Bharath - 24265A6604\nTABLE OF CONTENTS\nTITLE PAGE NO.\nCERTIFICATE i\nDECLARATION ii\nACKNOWLEDGEMENT iii\nLIST OF FIGURES v\n\nLIST OF TABLES vi\nABSTRACT 1\n1. INTRODUCTION 2\n1.1 Motivation 2\n1.2 Problem Definition 2\n1.3 Existing System 3\n1.4 Proposed System 3\n1.5 Requirements Specification 4\n1.5.1 Software Requirements 4\n1.5.2 Hardware Requirements 4\n1.6 Languages and Technologies Used 5\n1.6.1 Python 5\n1.6.2 Scikit-learn 5\n1.6.3 NLTK 5\n2. LITERATURE SURVEY 6\n2.1 Literature Survey Table 6\n3. DESIGN METHODOLOGY 8\n3.1 System Architecture 8\n3.2 Data Flow Diagram 9\n3.3 Preprocessing Pipeline 9\n3.4 Feature Extraction: TF-IDF 10\n3.5 Model Selection and Training 10\n3.5.1 Logistic Regression 10\n3.5.2 Linear SVM 11\n4. RESULTS AND TESTING 12\n4.1 Dataset Overview 12\n4.2 Preprocessing Results 13\n4.3 Logistic Regression - Model Performance 13\n4.4 Linear SVM - Model Performance 14\n4.5 Interactive Testing Loop 14\n4.6 Model Comparison 15\n5. CONCLUSION AND FUTURE SCOPE 16\n\n5.1 Conclusion 16\n5.2 Future Scope 17\nBIBLIOGRAPHY 18\nAPPENDIX 19\nLIST OF FIGURES\nFigure No. Page No.\nFigure 3.1 System Architecture Diagram of Emotion Detection System 8\nFigure 3.2 Data Flow Diagram of Emotion Detection System 9\nFigure 4.1 Emotion Class Distribution in final_dataset.csv 12\nFigure 4.2 Preprocessing Pipeline Flow 13\nFigure 4.3 Logistic Regression Confusion Matrix 13\nFigure 4.4 LinearSVC Confusion Matrix 14\nFigure 4.5 Model Accuracy Comparison (LR vs SVM) 15\nFigure 4.6 Interactive Emotion Detection Output (Sample) 15\nLIST OF TABLES\nTable No. Page No.\nTable 2.1 Literature Survey 6\nTable 3.1 TF-IDF Vectorizer Configuration Parameters 10\nTable 4.1 Emotion Class Distribution in final_dataset.csv 12\nTable 4.2 Model Performance Comparison (LR vs LinearSVC) 13\nTable 4.3 Sample Interactive Prediction Outputs 14\nABSTRACT\nEmotion detection from text is a fundamental task in Natural Language Processing (NLP) that enables\nsystems to identify and classify the emotional state conveyed by written language. This project\npresents an Emotion Detection System trained on a large-scale multi-class dataset comprising 106,355\ntext samples spanning eleven distinct emotion categories: anger, empty, enthusiasm, fun, happiness,\nhate, love, neutral, relief, sadness, and surprise.\nThe system employs a classical machine learning pipeline in which raw text is preprocessed through\nlowercasing, punctuation removal, stop-word filtering, and lemmatization using NLTK. Feature\nextraction is performed using TF-IDF vectorization with trigram support (n-gram range 1-3) and\nsublinear term-frequency scaling across a vocabulary of up to 10,000 features. Two classification\nalgorithms are trained and evaluated: Logistic Regression with grid-searched regularization and\nLinearSVC, both configured with class-weight balancing to address class imbalance.\n\nModel selection is performed via 3-fold cross-validated GridSearchCV, and both models are\nbenchmarked on a held-out 20% test split using accuracy, per-class precision, recall, F1-score, and\nconfusion matrices. The system concludes with an interactive prediction loop allowing real-time\ninference: Logistic Regression outputs top-3 emotion probabilities while SVM provides a hard-label\nprediction.\nThe proposed system demonstrates that well-tuned classical ML pipelines can achieve competitive\nemotion classification performance, offering interpretability and computational efficiency compared to\ndeep learning approaches.\n1. INTRODUCTION\nEmotion detection from text is the task of automatically identifying the emotional tone expressed in\nwritten language. As digital communication proliferates across social media, messaging platforms, and\nonline communities, the ability to automatically infer human emotions from text has become\nincreasingly valuable in applications ranging from customer sentiment analysis to mental health\nmonitoring, chatbot development, and human-computer interaction.\n1.1 Motivation\nManual emotion labelling is time-consuming and subjective. An automated system that can reliably\nclassify text into fine-grained emotion categories enables large-scale analysis of user sentiment, early\ndetection of distress in mental-health contexts, and improved personalisation in conversational agents.\nThe availability of large, labelled datasets makes supervised machine learning an attractive and\neffective approach for this task.\n1.2 Problem Definition\nGiven a sentence or short text passage, the system must assign it to one of eleven emotion classes:\nanger, empty, enthusiasm, fun, happiness, hate, love, neutral, relief, sadness, or surprise. The dataset\nof 106,355 samples is moderately imbalanced (the 'empty' class contains only 6,358 samples while all\nothers have approximately 10,000). The challenge is to build a pipeline that is robust to this imbalance\nand generalises well to unseen text.\n1.3 Existing System\nPrior approaches to emotion detection range from lexicon-based methods (e.g., WordNet-Affect, NRC\nEmotion Lexicon) that rely on hand-crafted sentiment dictionaries, to deep learning models such as\nBiLSTM, BERT, and RoBERTa that capture contextual semantics. Lexicon-based systems are fast but\nbrittle; deep learning models are powerful but computationally expensive and require large GPU\nresources for training. Classical machine learning methods such as SVM and Logistic Regression offer\nan effective middle ground: competitive accuracy, fast inference, and full interpretability.\n1.4 Proposed System\nThe proposed system is a classical NLP pipeline consisting of: (1) text preprocessing with NLTK\nstop-word removal and WordNet lemmatization; (2) TF-IDF vectorization with 1-3-gram features and\nsublinear TF scaling; (3) two classifiers-Logistic Regression and Linear SVM-tuned via grid search with\ncross-validation; and (4) an interactive prediction interface that displays top-3 emotion probabilities from\n\nLogistic Regression alongside the SVM hard-label prediction.\n1.5 Requirements Specification\n1.5.1 Software Requirements\nOperating System: Windows 10/11, macOS, or Linux (Ubuntu 20.04+)\nProgramming Language: Python 3.8 or higher\nLibraries: scikit-learn, pandas, numpy, nltk, re (standard library)\nDataset: final_dataset.csv - 106,355 rows, columns: text, emotion\nIDE: Jupyter Notebook, VS Code, or any Python IDE\n1.5.2 Hardware Requirements\nProcessor: Dual-core 2 GHz or higher\nRAM: 8 GB minimum (16 GB recommended for GridSearchCV on full dataset)\nStorage: 1 GB free disk space\n1.6 Languages and Technologies Used\n1.6.1 Python\nPython is the core programming language of the project. Its rich ecosystem of data science and NLP\nlibraries (scikit-learn, pandas, numpy, nltk) makes it ideal for building end-to-end machine learning\npipelines for text classification.\n1.6.2 Scikit-learn\nscikit-learn provides the machine learning backbone: TfidfVectorizer for feature extraction,\nLogisticRegression and LinearSVC for classification, GridSearchCV for hyperparameter tuning, and\ntrain_test_split for dataset partitioning. Evaluation tools (accuracy_score, classification_report,\nconfusion_matrix) are also sourced from this library.\n1.6.3 NLTK\nThe Natural Language Toolkit (NLTK) is used for preprocessing: the stopwords corpus removes\ncommon English function words, and the WordNetLemmatizer reduces inflected word forms to their\nbase lemma (e.g., \"running\" ? \"run\"), improving feature quality.\n2. LITERATURE SURVEY\nThe following literature survey synthesizes research published between 2019 and 2024 in the domain\nof emotion and sentiment detection from text using machine learning and NLP techniques. Studies\nwere sourced from IEEE, Springer, ACM, Elsevier, and MDPI publications.\n2.1 Literature Survey Table\n\nTable 2.1 presents the consolidated literature survey covering reference papers on emotion detection\nfrom text using machine learning and NLP techniques.\nThe literature survey reveals that transformer-based models achieve the highest accuracy for emotion\ndetection but require significant computational resources. Classical ML approaches such as LinearSVC\nwith TF-IDF and Logistic Regression offer a practical balance of accuracy, speed, and interpretability,\nmaking them suitable for deployments without GPU infrastructure.\n3. DESIGN METHODOLOGY\nThis chapter describes the end-to-end design of the Emotion Detection system, covering the overall\nsystem architecture, the data preprocessing pipeline, feature extraction strategy, model training and\ntuning procedure, and evaluation methodology.\n3.1 System Architecture\nThe system is structured as a sequential, modular pipeline consisting of six principal stages:\nRaw Text Input - User-provided sentences or CSV-sourced labelled text.\nPreprocessing Module - Normalisation, punctuation removal, stop-word filtering, and lemmatization.\nFeature Extraction - TF-IDF vectorization with 1-3-gram features.\nModel Training - GridSearchCV-tuned Logistic Regression and LinearSVC classifiers.\nEvaluation - Accuracy, classification report, and confusion matrix on a 20% hold-out test set.\nInteractive Inference Loop - Real-time user input with top-3 LR probability scores and SVM label.\n3.2 Data Flow Diagram\nThe data flows as follows: the raw CSV (final_dataset.csv) is loaded into a pandas DataFrame.\nDuplicate and null rows are dropped and texts shorter than 3 characters are filtered. The preprocess()\nfunction is applied to every text sample. The cleaned corpus is split 80/20 into training and test subsets\nusing stratified sampling to preserve class proportions. The training subset is passed to\nTfidfVectorizer.fit_transform() and the test subset to vectorizer.transform(). Both transformed matrices\nare fed to the respective GridSearchCV objects for classifier training and validation.\n3.3 Preprocessing Pipeline\nThe preprocess() function applies the following transformations in order:\nLowercasing: All characters converted to lowercase to ensure vocabulary uniformity.\nPunctuation and Non-Alphabetic Character Removal: A regular expression strips all digits, symbols,\nand punctuation marks, leaving only alphabetic tokens and spaces.\nStop-Word Filtering: English stop words from the NLTK corpus are removed, eliminating function words\nthat carry minimal semantic content.\nLemmatization: WordNetLemmatizer reduces each token to its dictionary base form, reducing\nvocabulary sparsity.\n\n3.4 Feature Extraction: TF-IDF\nTF-IDF (Term Frequency-Inverse Document Frequency) weighting is applied via scikit-learn's\nTfidfVectorizer with the following configuration:\n3.5 Model Selection and Training\nTwo linear classifiers are selected for their established efficacy in text classification tasks:\n3.5.1 Logistic Regression\nLogistic Regression is trained with class_weight='balanced' to compensate for the 'empty' class\nimbalance, and max_iter=2000 to ensure convergence. The regularization strength C is tuned over\n[0.1, 1, 5] via 3-fold GridSearchCV. Logistic Regression outputs calibrated class probabilities, enabling\nthe top-3 emotion display in the interactive mode.\n3.5.2 Linear SVM\nLinearSVC implements a linear support vector classifier optimised with coordinate descent, offering\nfaster training than the kernel SVM on high-dimensional sparse TF-IDF matrices.\nclass_weight='balanced' is applied and C is tuned over [0.1, 1, 5] via 3-fold GridSearchCV with\nmax_iter=3000. LinearSVC produces hard class-label predictions.\n4. RESULTS AND TESTING\nThe system was implemented in Python 3.10 using scikit-learn 1.3, NLTK 3.8, pandas, and numpy.\nTraining and evaluation were performed on a standard laptop with 16 GB RAM. The dataset\n(final_dataset.csv) contains 106,355 samples across 11 emotion classes.\n4.1 Dataset Overview\n4.2 Preprocessing Results\nAfter applying the preprocessing pipeline, duplicate and null records were removed. Texts with fewer\nthan 4 characters post-cleaning were filtered. The cleaned corpus retained approximately 106,000+\nsamples. Sample transfo\n... [Content truncated for processing]",
   "extracted_requirements": {
-    "privacy": 0.0,
-    "freshness": 0.0,
-    "complexity": 0.0
+    "privacy": 0.95,
+    "freshness": 0.9,
+    "complexity": 0.85
   },
   "candidate_models": [
+    "gemma3",
+    "mistral",
     "gemini-3.6-flash",
     "openrouter/free",
     "gpt-4"
   ],
   "utility_scores": {
-    "gemini-3.6-flash": 0.46499999999999997,
-    "gpt-4": 0.44,
-    "openrouter/free": 0.4475
+    "gemma3": 0.6650625,
+    "mistral": 0.6463749999999999,
+    "gemini-3.6-flash": 0.63575,
+    "gpt-4": 0.5505,
+    "openrouter/free": 0.557625
   },
   "capability_mismatches": {
+    "gemma3": {
+      "privacy": 0.050000000000000044,
+      "freshness": 0.7,
+      "complexity": 0.32500000000000007
+    },
+    "mistral": {
+      "privacy": 0.050000000000000044,
+      "freshness": 0.75,
+      "complexity": 0.36000000000000004
+    },
     "gemini-3.6-flash": {
-      "privacy": 0.35,
-      "freshness": 1.0,
-      "complexity": 0.95
+      "privacy": 0.6,
+      "freshness": 0.09999999999999998,
+      "complexity": 0.09999999999999998
     },
     "gpt-4": {
-      "privacy": 0.3,
-      "freshness": 1.0,
-      "complexity": 0.98
+      "privacy": 0.6499999999999999,
+      "freshness": 0.09999999999999998,
+      "complexity": 0.13
     },
     "openrouter/free": {
-      "privacy": 0.35,
-      "freshness": 1.0,
-      "complexity": 0.9
+      "privacy": 0.6,
+      "freshness": 0.09999999999999998,
+      "complexity": 0.050000000000000044
     }
   },
   "ranking": [
+    "gemma3",
+    "mistral",
     "gemini-3.6-flash",
     "openrouter/free",
     "gpt-4"
   ],
-  "selected_model": "gemini-3.6-flash",
+  "selected_model": "gemma3",
   "rejected_models": [
+    "mistral",
+    "gemini-3.6-flash",
     "openrouter/free",
     "gpt-4"
   ],
-  "selection_margin": 0.01749999999999996,
+  "selection_margin": 0.01868750000000008,
   "confidence": 1.0,
   "triggered_constraints": [
-    "check_local_model"
+    "check_privacy"
   ],
-  "execution_time_ms": 1.827799977036193,
-  "timestamp": "2026-08-30T17:48:17.305360",
+  "execution_time_ms": 11.672399996314198,
+  "timestamp": "2026-09-02T16:48:33.848788",
   "algorithm_version": "CAHRA-v1.0",
-  "strategy_version": "Capability-Aware Weighted Hybrid Routing"
+  "strategy_version": "Context Aware Hybrid Routing Algorithm"
 }
