@@ -10,7 +10,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 
 ### 1. HELIOS Desktop Interface
 
-![HELIOS Desktop Interface](docs/images/helios-main-interface.png)
+![HELIOS Desktop Interface](docs/images/home-page.jpg)
 <!-- Screenshot to be added -->
 
 *HELIOS desktop interface showing the floating glass dock, model selector, Screen Context control, chat view, and runtime status bar.*
@@ -19,7 +19,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 
 ### 2. Natural-Language Task Execution
 
-![Natural-Language Task Execution](docs/images/helios-task-execution.png)
+![A natural-language request is interpreted, executed, and verified against the resulting application state.](docs/images/Natural-language-intent.jpg)
 <!-- Screenshot to be added -->
 
 *A real HELIOS request being interpreted, routed, and executed through the Orchestrator.*
@@ -28,7 +28,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 
 ### 3. CAHRA Routing in Real Time
 
-![CAHRA Routing in Real Time](docs/images/helios-cahra-routing.png)
+![CAHRA (Context Aware Hybrid Routing Algorithm) evaluates request context and selects an appropriate model path.](docs/images/CAHRA-routing.jpg)
 <!-- Screenshot to be added -->
 
 *Real-time CAHRA routing diagnostics showing the selected model, extracted context features, scoring breakdown, and routing decision.*
@@ -37,7 +37,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 
 ### 4. Screen Context
 
-![Screen Context](docs/images/helios-screen-context.png)
+![Screen Context provides on-demand visual awareness for screen-dependent requests.](docs/images/screen-context.jpg)
 <!-- Screenshot to be added -->
 
 *HELIOS using Screen Context to observe the current desktop state on demand for a screen-dependent request.*
@@ -46,7 +46,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 
 ### 5. Live Desktop Interaction
 
-![Live Desktop Interaction](docs/images/helios-live-desktop-interaction.png)
+![HELIOS performs a desktop action and verifies the resulting application state before reporting success.](docs/images/live-desktop-interaction.jpg)
 <!-- Screenshot to be added -->
 
 *HELIOS interacting with a user application through the desktop session workflow.*
@@ -55,7 +55,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 
 ### 6. Verification Before Response
 
-![Verification State](docs/images/helios-verification.png)
+![HELIOS retrieves information from local documents and grounds its response in the available source material.](docs/images/RAG.jpg)
 <!-- Screenshot to be added -->
 
 *HELIOS evaluating post-execution window state via the StateVerifier before delivering a response.*
@@ -64,7 +64,7 @@ The following screenshots demonstrate HELIOS executing real tasks through its de
 
 ### 7. Commerce & Payment Verification
 
-![Commerce Verification](docs/images/helios-commerce-verification.png)
+![A commerce request is verified before payment preparation: product identity, price, quantity, and authorization state are shown before any transaction is allowed.](docs/images/payment.jpg)
 <!-- Screenshot to be added -->
 
 *HELIOS verifying a product page and preparing a payment intent card requiring explicit user authorization.*
