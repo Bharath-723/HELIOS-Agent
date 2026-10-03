@@ -36,23 +36,6 @@ HELIOS is an on-premise, sovereign agentic AI workbench engineered for confident
 
 ---
 
-## Problem Statement — SIH 26117
-
-**Title**: Sovereign On-Premise Agentic AI Workbench using Open-Weight Multimodal LLMs for Confidential Industrial Work  
-**Theme**: Smart Automation  
-**Core Product**: HELIOS — Sovereign AI Workbench  
-
-Industrial facilities (refineries, manufacturing plants, power grids, and defense infrastructure) face critical operational and security challenges:
-- **Confidential Industrial Information**: Safety reports, relief valve inspection logs, operating procedure (SOP) manuals, and plant schematics contain proprietary and sensitive operational data that cannot leave local plant boundaries.
-- **Cloud Inference Boundary**: Public cloud AI APIs present compliance, data leakage, and external operational dependency risks for air-gapped or confidential industrial environments.
-- **Heterogeneous AI Tasks**: Industrial operations require multiple AI capabilities—document extraction, numerical calculation, script execution, spreadsheet auditing, visual inspection, and report formatting.
-- **Static Chat is Insufficient**: Standard chat interfaces cannot execute multi-step OS actions, run sandboxed code, compute metrics, or verify output correctness.
-- **Outputs Must Be Verified Deliverables**: Industrial workflows demand formal, reproducible, and verifiable documents (Word approval notes, Excel summaries, PDF reports) backed by automated verification.
-
-HELIOS solves these challenges by deploying an **application-enforced local-only execution workbench** powered by open-weight local models and a deterministic local tool suite.
-
----
-
 ## What HELIOS Does
 
 HELIOS transforms natural-language requests into verified industrial deliverables through a strict agentic lifecycle:
@@ -153,6 +136,9 @@ The following diagram illustrates the complete HELIOS system architecture, showi
 ```
 
 ---
+
+![HELIOS Desktop Interface](docs/images/helios-main-page.jpg)
+
 
 ## Feature Implementation Matrix
 
