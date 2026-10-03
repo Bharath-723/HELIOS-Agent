@@ -50,3 +50,24 @@ logs/
 *.tmp
 *.bak
 scratch/
+
+# Evaluation datasets
+evaluation/datasets/neu_det/
+evaluation/data/
+evaluation/cache/
+
+# Evaluation generated outputs
+evaluation/results/raw/
+evaluation/results/processed/
+
+# Local benchmark logs
+evaluation/logs/
+
+# Local model outputs
+evaluation/artifacts/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+next-env.d.ts

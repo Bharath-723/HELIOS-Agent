@@ -1,620 +1,661 @@
-# HELIOS
+# HELIOS — Sovereign Agentic AI Workbench
 
-HELIOS is an autonomous desktop AI agent that connects natural-language user requests to local or cloud AI models and practical operating tools. It unifies document processing, desktop automation, visual screen observation, web search, spreadsheet analytics, sandboxed code execution, and safe commerce research while applying strict explicit authorization boundaries where actions have side effects.
-
----
-
-## HELIOS in Action
-
-The following screenshots demonstrate HELIOS executing real tasks through its desktop interface, including natural-language interaction, model routing, Screen Context, desktop actions, and verification.
-
-### 1. HELIOS Desktop Interface
-
-![HELIOS Desktop Interface](docs/images/home-page.jpg)
-<!-- Screenshot to be added -->
-
-*HELIOS desktop interface showing the floating glass dock, model selector, Screen Context control, chat view, and runtime status bar.*
-
----
-
-### 2. Natural-Language Task Execution
-
-![A natural-language request is interpreted, executed, and verified against the resulting application state.](docs/images/Natural-language-intent.jpg)
-<!-- Screenshot to be added -->
-
-*A real HELIOS request being interpreted, routed, and executed through the Orchestrator.*
-
----
-
-### 3. CAHRA Routing in Real Time
-
-![CAHRA (Context Aware Hybrid Routing Algorithm) evaluates request context and selects an appropriate model path.](docs/images/CAHRA-routing.jpg)
-<!-- Screenshot to be added -->
-
-*Real-time CAHRA routing diagnostics showing the selected model, extracted context features, scoring breakdown, and routing decision.*
-
----
-
-### 4. Screen Context
-
-![Screen Context provides on-demand visual awareness for screen-dependent requests.](docs/images/screen-context.jpg)
-<!-- Screenshot to be added -->
-
-*HELIOS using Screen Context to observe the current desktop state on demand for a screen-dependent request.*
-
----
-
-### 5. Live Desktop Interaction
-
-![HELIOS performs a desktop action and verifies the resulting application state before reporting success.](docs/images/live-desktop-interaction.jpg)
-<!-- Screenshot to be added -->
-
-*HELIOS interacting with a user application through the desktop session workflow.*
-
----
-
-### 6. Verification Before Response
-
-![HELIOS retrieves information from local documents and grounds its response in the available source material.](docs/images/RAG.jpg)
-<!-- Screenshot to be added -->
-
-*HELIOS evaluating post-execution window state via the StateVerifier before delivering a response.*
-
----
-
-### 7. Commerce & Payment Verification
-
-![A commerce request is verified before payment preparation: product identity, price, quantity, and authorization state are shown before any transaction is allowed.](docs/images/payment.jpg)
-<!-- Screenshot to be added -->
-
-*HELIOS verifying a product page and preparing a payment intent card requiring explicit user authorization.*
+HELIOS is an on-premise, sovereign agentic AI workbench engineered for confidential industrial operations under **SIH Problem Statement 26117**. It combines open-weight local multimodal LLMs (Gemma 3, Mistral, Llama 3 via Ollama), on-device OCR (RapidOCR), lexical RAG document grounding, sandboxed Python code execution, spreadsheet analytics, and verifiable deliverable generation (DOCX, XLSX, PDF) within an application-enforced sovereign execution boundary.
 
 ---
 
 ## Table of Contents
-1. [What HELIOS Is](#what-helios-is)
-2. [What HELIOS Can Do](#what-helios-can-do)
-3. [How HELIOS Works](#how-helios-works)
-4. [The HELIOS Orchestrator](#the-helios-orchestrator)
-5. [Natural-Language Intent](#natural-language-intent)
-6. [CAHRA — Context Aware Hybrid Routing Algorithm](#cahra--context-aware-hybrid-routing-algorithm)
-7. [Core LLM Decision Logic](#core-llm-decision-logic)
-8. [Local and Cloud Models](#local-and-cloud-models)
-9. [Screen Context & Live Desktop Interaction](#screen-context--live-desktop-interaction)
-10. [Desktop Automation](#desktop-automation)
-11. [Verification Before Response](#verification-before-response)
-12. [Documents, Files and RAG](#documents-files-and-rag)
-13. [Web Search](#web-search)
-14. [Voice Input](#voice-input)
-15. [Notes and Reminders](#notes-and-reminders)
-16. [System Controls](#system-controls)
-17. [Commerce](#commerce)
-18. [Payment and Payment Security](#payment-and-payment-security)
-19. [Privacy](#privacy)
-20. [Architecture](#architecture)
-21. [Project Structure](#project-structure)
-22. [Installation](#installation)
-23. [Configuration](#configuration)
-24. [Usage Examples](#usage-examples)
-25. [System Scope & Environment Requirements](#system-scope--environment-requirements)
-26. [License](#license)
+1. [Problem Statement — SIH 26117](#problem-statement--sih-26117)
+2. [What HELIOS Does](#what-helios-does)
+3. [Core Architecture](#core-architecture)
+4. [Feature Implementation Matrix](#feature-implementation-matrix)
+5. [Sovereign Local-Only Architecture](#sovereign-local-only-architecture)
+6. [CAHRA — Task-Aware Model Routing](#cahra--task-aware-model-routing)
+7. [Agentic Execution Loop](#agentic-execution-loop)
+8. [Multimodal Processing & On-Device OCR](#multimodal-processing--on-device-ocr)
+9. [Local RAG / Industrial SOP Grounding](#local-rag--industrial-sop-grounding)
+10. [Sandboxed Code Execution](#sandboxed-code-execution)
+11. [Spreadsheet Analytics](#spreadsheet-analytics)
+12. [Industrial Deliverables](#industrial-deliverables)
+13. [Flagship Industrial Workflow (PSV-301 Relief Valve)](#flagship-industrial-workflow-psv-301-relief-valve)
+14. [Additional Industrial Workflows](#additional-industrial-workflows)
+15. [Network Security & Sovereignty](#network-security--sovereignty)
+16. [Enterprise Authorization Model](#enterprise-authorization-model)
+17. [Enterprise Data Continuity (Architecture Extension)](#enterprise-data-continuity-architecture-extension)
+18. [Industrial Incident / Accident Data Continuity (Architecture Extension)](#industrial-incident--accident-data-continuity-architecture-extension)
+19. [Deployment & Reference Hardware](#deployment--reference-hardware)
+20. [Security Model](#security-model)
+21. [Empirical Verification & Benchmark Results](#empirical-verification--benchmark-results)
+22. [Technology Stack](#technology-stack)
+23. [Repository Structure](#repository-structure)
+24. [Installation & Setup](#installation--setup)
+25. [Configuration](#configuration)
+26. [Detailed Industrial Workflow Example](#detailed-industrial-workflow-example)
+27. [Limitations & System Scope](#limitations--system-scope)
+28. [License](#license)
 
 ---
 
-## What HELIOS Is
+## Problem Statement — SIH 26117
 
-HELIOS is a desktop-native AI assistant designed to eliminate the friction between human intent and software execution. Instead of requiring users to learn CLI commands, navigate nested settings menus, or switch between multiple single-purpose tools, HELIOS interprets natural language, resolves what capability is required, routes the request to an appropriate local or cloud AI model, executes the task, verifies the outcome, and presents a grounded response.
+**Title**: Sovereign On-Premise Agentic AI Workbench using Open-Weight Multimodal LLMs for Confidential Industrial Work  
+**Theme**: Smart Automation  
+**Core Product**: HELIOS — Sovereign AI Workbench  
 
----
+Industrial facilities (refineries, manufacturing plants, power grids, and defense infrastructure) face critical operational and security challenges:
+- **Confidential Industrial Information**: Safety reports, relief valve inspection logs, operating procedure (SOP) manuals, and plant schematics contain proprietary and sensitive operational data that cannot leave local plant boundaries.
+- **Cloud Inference Boundary**: Public cloud AI APIs present compliance, data leakage, and external operational dependency risks for air-gapped or confidential industrial environments.
+- **Heterogeneous AI Tasks**: Industrial operations require multiple AI capabilities—document extraction, numerical calculation, script execution, spreadsheet auditing, visual inspection, and report formatting.
+- **Static Chat is Insufficient**: Standard chat interfaces cannot execute multi-step OS actions, run sandboxed code, compute metrics, or verify output correctness.
+- **Outputs Must Be Verified Deliverables**: Industrial workflows demand formal, reproducible, and verifiable documents (Word approval notes, Excel summaries, PDF reports) backed by automated verification.
 
-## What HELIOS Can Do
-
-| Capability | Scope & Processing | Key Operations | Read / Action |
-|---|---|---|:---:|
-| **Natural Language Interaction** | Local / Cloud | Converts freeform English requests into structured actions or conversational answers | Read |
-| **CAHRA Model Routing** | System Engine | Dynamically routes between local Ollama models (`gemma3`, `mistral`) and cloud LLMs (`gemini-3.6-flash`, `gpt-4o-mini`, `openrouter`) | Read |
-| **Screen Observation** | Demand-Driven Local | Captures desktop screenshot on demand, enumerates Win32 Z-order windows, extracts text via RapidOCR, and grounds reasoning | Read |
-| **Desktop Automation** | Native Local API | Opens applications (`Chrome`, `Settings`, `Notepad`, `Calculator`), closes browser tabs (`Ctrl+W`), minimizes windows (`Win+Down`), and controls system settings | Action |
-| **Browser & Web Tasks** | Web / Local | Opens web URLs, conducts web searches via Tavily & DuckDuckGo API, and reads web content | Action |
-| **Document Processing & Conversion** | Local File System | Extracts text from PDF, DOCX, TXT, MD, and converts documents to PDF using ReportLab | Read / Action |
-| **Local RAG Retrieval** | Local Storage | Searches local notes and index entries to answer questions grounded in local knowledge | Read |
-| **Spreadsheet Processing** | Local File System | Ingests `.xlsx` and `.csv` files, filters rows, aggregates columns, and calculates metrics | Read |
-| **Sandboxed Code Execution** | Isolated Process | Runs generated Python code in a sandboxed subprocess with strict execution timeouts | Action |
-| **Commerce Research** | Web API | Searches multiple online platforms (Amazon, Flipkart, etc.), compares prices, and verifies direct product pages | Read |
-| **Payment Preparation & Security** | Sandbox / API Boundary | Generates Razorpay payment previews with HMAC signatures and requires explicit user authorization before order creation | Action |
+HELIOS solves these challenges by deploying an **application-enforced local-only execution workbench** powered by open-weight local models and a deterministic local tool suite.
 
 ---
 
-## How HELIOS Works
+## What HELIOS Does
 
-HELIOS processes user requests through a two-tier pipeline consisting of deterministic pre-routing guards, semantic intent parsing, capability-aware model routing, isolated capability execution, and state verification.
-
-### System Architecture & Integrated Layered Workflow
-
-```mermaid
-flowchart TD
-    subgraph UI ["INTERFACE LAYER"]
-        A1["helios_popup.py (Floating Glass Dock)"]
-        A2["main.py (CLI Mode)"]
-        A3["Chat History & Activity Telemetry"]
-    end
-
-    subgraph ORCH ["ORCHESTRATOR LAYER"]
-        B1["agent.py — HELIOSAgent Orchestrator"]
-        B2["Receives prompt, checks pre-routing guards (Session & Commerce)"]
-        B3["Dispatches validated action to correct capability module"]
-    end
-
-    subgraph MODULES ["ACTION & CAPABILITY MODULES"]
-        C1["Desktop: Apps, Media, Files, Focus, Win32 Z-Order"]
-        C2["System: Wi-Fi, Bluetooth, Brightness, Audio Volume"]
-        C3["Notes: Local CRUD & Local RAG Knowledge Base"]
-        C4["Scheduler: APScheduler Reminders & Cron Tasks"]
-        C5["Web / Browser: Tavily Live Search, Playwright"]
-        C6["Documents: PDF, DOCX, TXT, ReportLab PDF Conversion"]
-        C7["Analytics: Spreadsheet Agent & Sandboxed Python Execution"]
-    end
-
-    subgraph CORE ["CORE INTELLIGENCE LAYER"]
-        D1["NLRouter: Fast Regex & Paraphrase Intent Normalization"]
-        D2["CAHRA: Context Aware Hybrid Routing Algorithm"]
-        D3["HybridLLM Engine: Local Ollama + Cloud Gemini / GPT / OpenRouter / Groq"]
-    end
-
-    subgraph EXEC ["EXECUTION & VERIFICATION LAYER"]
-        E1["Local Execution: Ollama gemma3 (Offline / Privacy / Fast)"]
-        E2["Cloud Execution: Gemini 3.6 Flash / GPT-4o-mini (Live Data)"]
-        E3["StateVerifier & RecoveryEngine: Window State Post-Verification"]
-    end
-
-    UI --> ORCH
-    ORCH --> CORE
-    CORE --> MODULES
-    CORE --> EXEC
-    MODULES --> E3
-```
-
----
-
-## The HELIOS Orchestrator
-
-The **Orchestrator** (implemented in [`agent.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/agent.py) as `HELIOSAgent`) is the central controller of the system.
-
-When a user submits a prompt, the Orchestrator manages the request lifecycle:
-
-1. **Pre-Routing Safety Guards**:
-   - **Guard 0.58 (Desktop Session)**: Checks active desktop automation sessions and screen privacy policies.
-   - **Guard 0.6 (Commerce & Payments)**: Intercepts shopping, pricing, and payment requests, delegating them to `CommerceOrchestrator` before general chat routing.
-2. **Intent Resolution (`NLRouter`)**: Maps natural-language inputs to specific actions or general conversation.
-3. **Capability Dispatch**: Selects the required module (`DesktopSessionManager`, `DocumentProcessor`, `OCRProvider`, `LocalRAGConnector`, `CodeSandbox`, `CommerceOrchestrator`, `SpreadsheetAgent`).
-4. **CAHRA Model Routing**: Selects the appropriate local or cloud AI model for reasoning.
-5. **Execution Verification (`ActionVerifier`)**: Compares post-execution window states to verify action success.
-6. **Response Generation**: Formats grounded markdown cards and sanitizes model output for UI rendering.
-
-### Concrete Orchestration Examples
-
-#### Example A: System Settings
-```text
-User: "Open Wi-Fi settings"
-  └─ Orchestrator receives prompt
-  └─ NLRouter identifies action: open_settings (params: {target: "wifi"})
-  └─ SystemControls dispatcher opens Windows ms-settings:network-wifi
-  └─ ActionVerifier checks active window state
-  └─ Result: "Opened Wi-Fi Settings."
-```
-
-#### Example B: Screen Observation
-```text
-User: "What can you see on my screen?"
-  └─ Orchestrator verifies Screen Context is ON
-  └─ ScreenObserver captures screenshot (excluding HELIOS UI overlay)
-  └─ RapidOCR extracts on-screen text & active Win32 window metadata
-  └─ Visual context payload injected into LLM reasoning
-  └─ Result: "🖥️ Screen Observation [Google Chrome]: Currently observing Google Chrome..."
-```
-
-#### Example C: Commerce & Payment Preparation
-```text
-User: "Find a wireless keyboard under ₹2000 and prepare payment"
-  └─ Guard 0.6 intercepts commercial intent
-  └─ CommerceOrchestrator conducts multi-merchant web search (Tavily API)
-  └─ Verifies direct product page URL & calculates transaction total
-  └─ TransactionGuard checks amount limits & idempotency
-  └─ UI renders interactive Payment Preview Card requiring explicit user click authorization
-  └─ Result: "Payment prepared. Click [Authorize Payment] to proceed."
-```
-
----
-
-## Natural-Language Intent
-
-HELIOS separates **what the user means** from **how the action is technically executed**. Users do not need to memorize exact command syntax.
-
-- **General Intent Normalization**:
-  - `"Open settings"`, `"Bring up system settings"`, and `"Take me to settings"` all map to generic settings resolution.
-  - `"What can you see on my screen?"`, `"What is currently visible?"`, and `"Inspect my desktop"` all resolve to screen observation.
-- **Target Specificity Preservation**:
-  - Specific requests like `"Open Wi-Fi settings"` or `"Open Display settings"` preserve their exact target and open the corresponding sub-page rather than falling back to generic settings.
-
----
-
-## CAHRA — Context Aware Hybrid Routing Algorithm
-
-The **Context Aware Hybrid Routing Algorithm (CAHRA)** is the model-selection engine in HELIOS. It determines whether a request should be processed by a local LLM or escalated to a cloud model.
-
-### Routing Dimensions
-
-1. **Privacy Score ($R_p$)**: Detects sensitive keywords, personal credentials, or local data references. High privacy requirements force processing to local Ollama models.
-2. **Freshness Score ($R_f$)**: Identifies queries requiring real-time internet information (e.g. current news, weather, live scores, web searches). High freshness queries trigger cloud model routing.
-3. **Complexity Score ($R_c$)**: Evaluates query length, reasoning steps, and technical depth to allocate model capacity.
-4. **Latency Score**: Estimates model response time based on local hardware capabilities versus cloud API ping.
-5. **Cost Score**: Balances local zero-cost processing against cloud token budgets.
-
----
-
-## Core LLM Decision Logic
-
-The following flowchart details how HELIOS evaluates model routing decisions in real time. **Gemma3 (local) is always the offline fallback so HELIOS never fails completely.**
-
-```mermaid
-flowchart TD
-    Start([User Command Received]) --> ModeCheck{Check LLM_MODE in .env}
-
-    ModeCheck -- "offline" --> LocalOnly["Use Local Model (Ollama / gemma3)"]
-    ModeCheck -- "online" --> CloudCheck{Has Cloud Key & Internet?}
-    ModeCheck -- "auto" --> InternetCheck{Needs Internet / Live Search?}
-
-    InternetCheck -- "No" --> PrivacyCheck{Contains Sensitive Local Data?}
-    PrivacyCheck -- "Yes" --> LocalOnly
-    PrivacyCheck -- "No" --> LocalOnly
-
-    InternetCheck -- "Yes" --> CloudCheck
-
-    CloudCheck -- "Yes" --> CloudExec["Cloud LLM (Gemini 3.6 Flash / GPT / OpenRouter / Groq)"]
-    CloudCheck -- "No Key or Offline" --> FallbackLocal["Fallback to Local Ollama (gemma3)"]
-
-    LocalOnly --> FinalResp([Grounded Response Returned to User])
-    CloudExec --> FinalResp
-    FallbackLocal --> FinalResp
-```
-
----
-
-## Local and Cloud Models
-
-- **Local Processing**:
-  - Uses [Ollama](https://ollama.com/) running models such as `gemma3`, `mistral`, or `llama3`.
-  - Ensures full data privacy and offline capability.
-- **Cloud Processing**:
-  - **Google Gemini**: `gemini-3.6-flash` for high-speed live web queries.
-  - **OpenAI**: `gpt-4o-mini` for complex reasoning.
-  - **OpenRouter & Groq**: Dynamic free/open-tier cloud models.
-- **Fallback Guarantee**: If local Ollama is offline when a cloud fallback is needed (or vice versa), HELIOS dynamically attempts alternative active model providers.
-
----
-
-## Screen Context & Live Desktop Interaction
-
-Visual interaction in HELIOS is **demand-driven** and strictly controlled by the **Screen Context** toggle.
+HELIOS transforms natural-language requests into verified industrial deliverables through a strict agentic lifecycle:
 
 ```text
-    Screen Context: OFF  ──►  Visual interactions blocked (Returns instruction notice)
-    Screen Context: ON   ──►  Screen state acquired ONLY when request requires visual data
+Natural-Language Request
+        │
+        ▼
+Enterprise Authorization Gate (Role / Dept / Location)
+        │
+        ▼
+Task Decomposition & CAHRA Model Routing
+        │
+        ▼
+Local Tool Execution (OCR, Local RAG, Sandbox, Spreadsheet, File Creator)
+        │
+        ▼
+Action Verification & Output Containment
+        │
+        ▼
+Verifiable Deliverable Export (DOCX / XLSX / PDF)
 ```
 
-> [!IMPORTANT]
-> **Screen Context ON does not mean HELIOS continuously records your screen.** Screenshot capture and window enumeration occur **only at the exact moment** a visual request (such as `"What can you see on my screen?"`) is issued.
-
-### Screen Permission & Safety
-- **Overlay Exclusion**: The `ScreenObserver` enumerates Win32 Z-order windows and excludes HELIOS's own UI overlay from captures so the agent does not inspect itself.
-- **Foreground Safety Invariant**: HELIOS prevents sending keystrokes or mouse clicks to background windows while its own UI is focused, avoiding unintended user interactions.
-- **Screen Permission Manager**: Prompts for explicit user confirmation when transmitting visual screen data to cloud models.
-
 ---
 
-## Desktop Automation
+## Core Architecture
 
-HELIOS provides native Windows OS application and window control:
-
-- **System Application Dispatcher**: Launches Windows Settings panels (`ms-settings:`), Chrome, Notepad, Calculator, Explorer, Bluetooth, and Wi-Fi.
-- **Tab & Window Control**: Performs active tab closure (`Ctrl+W`) and window minimization (`Win+Down`).
-- **Focus Transfer**: `ApplicationFocusManager` cleanly transfers Win32 window focus from the HELIOS dock to target user applications before executing actions.
-
----
-
-## Verification Before Response
-
-HELIOS applies state verification after executing desktop commands to confirm that actions succeeded before reporting results to the user.
+The following diagram illustrates the complete HELIOS system architecture, showing the interaction between the UI layer, agent controller, routing engine, local tools, verification layer, artifact store, and enterprise continuity design.
 
 ```text
-  Observe Current State (Pre-Execution Screen/Window Metadata)
-               │
-               ▼
-         Execute Action
-               │
-               ▼
-  Observe Resulting State (Post-Execution Window Check)
-               │
-               ▼
-     StateVerifier Check (Window Title & Process Match)
-         ┌─────┴─────┐
-         ▼           ▼
-      Verified    Unverified
-         │           │
-         │           ▼
-         │     RecoveryEngine (1 Bounded Retry Attempt)
-         │           │
-         └─────┬─────┘
-               ▼
-        Final Response
+                               ┌─────────────────────────────────────────┐
+                               │           User + Attachments            │
+                               └────────────────────┬────────────────────┘
+                                                    │
+                                                    ▼
+                               ┌─────────────────────────────────────────┐
+                               │     UI Layer (Glass Dock / Web App)     │
+                               └────────────────────┬────────────────────┘
+                                                    │
+                                                    ▼
+                               ┌─────────────────────────────────────────┐
+                               │      Enterprise Authorization Gate      │
+                               │  (Role / Dept / Location / Permission)  │
+                               └────────────────────┬────────────────────┘
+                                                    │
+                                                    ▼
+                               ┌─────────────────────────────────────────┐
+                               │       HELIOS Agent Orchestrator         │
+                               │        (agent.py / HELIOSAgent)         │
+                               └───────────┬─────────────────┬───────────┘
+                                           │                 │
+                                           ▼                 ▼
+                                   ┌──────────────┐   ┌─────────────┐
+                                   │ CAHRA Router │   │    Task     │
+                                   │  (v1 / v2)   │   │ Decomposer  │
+                                   └───────┬──────┘   └─────────────┘
+                                           │
+                                           ▼
+                               ┌─────────────────────────────────────────┐
+                               │          Local Model Runtime            │
+                               │  (Ollama / localhost:11434 / Open-Weight│
+                               │   Models: gemma3, mistral, llama3)      │
+                               └────────────────────┬────────────────────┘
+                                                    │
+                    ┌───────────────────────────────┼───────────────────────────────┐
+                    │                               │                               │
+                    ▼                               ▼                               ▼
+       ┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+       │   OCR & Vision Engine  │      │  Local RAG Grounding   │      │ Sandboxed Code Subproc │
+       │ (RapidOCR / OpenCV)    │      │  (Lexical / 400-word)  │      │ (AST Check / Timeout)  │
+       └────────────┬───────────┘      └────────────┬───────────┘      └────────────┬───────────┘
+                    │                               │                               │
+                    └───────────────────────────────┼───────────────────────────────┘
+                                                    │
+                                                    ▼
+                               ┌─────────────────────────────────────────┐
+                               │  Spreadsheet & File Generation Engine   │
+                               │   (Pandas / OpenPyXL / python-docx)     │
+                               └────────────────────┬────────────────────┘
+                                                    │
+                                                    ▼
+                               ┌─────────────────────────────────────────┐
+                               │  ActionVerifier & State Recovery Engine │
+                               │     (Exit Codes / File Checksum)        │
+                               └────────────────────┬────────────────────┘
+                                                    │
+                                                    ▼
+                               ┌─────────────────────────────────────────┐
+                               │      ArtifactStore (Local FS Output)    │
+                               │     └─ DOCX / XLSX / PDF Deliverables   │
+                               └─────────────────────────────────────────┘
+
+ ═════════════════════════════════════════════════════════════════════════════════════════════════
+   SUPPORTING INFRASTRUCTURE:
+   • Sovereign Network Audit: NetworkAuditMonitor (LOCAL_ONLY policy, JSONL telemetry)
+   • Enterprise Continuity Layer (Architecture Extension): PostgreSQL + RLS + Storage (Backup/Recovery)
+ ═════════════════════════════════════════════════════════════════════════════════════════════════
 ```
 
-### State Verification Architecture
-- **`StateVerifier`**: Captures pre- and post-execution window titles, process names, and Z-order states. It verifies whether the target window became active.
-- **`RecoveryEngine`**: If the initial window activation fails, the recovery engine performs one bounded retry attempt to re-focus the application.
-- **Factual Scope**: The verifier checks OS window state and metadata. It does not perform full pixel-level image diffing or accessibility-tree DOM parsing.
+---
+
+## Feature Implementation Matrix
+
+To ensure absolute technical transparency, the table below clearly categorizes features into **VERIFIED / IMPLEMENTED**, **ARCHITECTURE EXTENSION**, and **FUTURE WORK**.
+
+| Feature / Module | Status | Scope & Technical Implementation | Source Reference |
+| :--- | :---: | :--- | :--- |
+| **Local LLM Engine** | **VERIFIED** | Ollama local runner (`gemma3:4b`, `mistral:7b`, `llama3:8b`) via `localhost:11434`. | [`core/llm_engine.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/llm_engine.py) |
+| **CAHRA Routing Engine** | **VERIFIED** | 5D utility evaluator ($R_p, R_f, R_c$, latency, cost) with empirical profiling store. | [`core/routing/`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/routing/) |
+| **Sovereign Network Audit** | **VERIFIED** | Application-enforced `LOCAL_ONLY` egress guard with redacted JSONL audit log. | [`core/network_audit.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/network_audit.py) |
+| **On-Device OCR & Vision** | **VERIFIED** | RapidOCR ONNX engine with 4 OpenCV image pre-processing variants. | [`core/ocr_provider.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/ocr_provider.py) |
+| **Local Lexical RAG** | **VERIFIED** | 400-word sliding window chunker with 50-word overlap & lexical keyword scoring. | [`core/local_rag.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/local_rag.py) |
+| **Sandboxed Code Execution** | **VERIFIED** | Bounded Python subprocess with AST import screening, secret scrubbing, and 5s timeout. | [`core/code_sandbox.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/code_sandbox.py) |
+| **Spreadsheet Analytics** | **VERIFIED** | Pandas + OpenPyXL engine for CSV/XLSX metrics, failure rates, and summary export. | [`modules/spreadsheet_agent.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/modules/spreadsheet_agent.py) |
+| **Document Deliverables** | **VERIFIED** | Automated Word (`.docx`) Plant Approval Notes & PDF generation (`ReportLab`). | [`modules/file_creator.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/modules/file_creator.py) |
+| **Action Verification** | **VERIFIED** | Post-execution verification of process exit codes, window states, and file artifacts. | [`core/action_verifier.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/action_verifier.py) |
+| **Flagship Inspection Workflow** | **VERIFIED** | End-to-end 5-step PSV-301 inspection report processing & approval note generation. | [`core/task_decomposer.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/task_decomposer.py) |
+| **Enterprise Data Continuity** | **EXTENSION** | Supabase PostgreSQL + RLS + Storage architecture for encrypted backup/recovery. | Architecture Specification |
+| **Incident / Accident Schema** | **EXTENSION** | Role/location-restricted industrial incident & safety audit record schema design. | Architecture Specification |
+| **Dense Vector Embedding RAG** | **FUTURE WORK** | On-device vector store (e.g. Chroma/FAISS) with local embedding models. | Planned Capability |
+| **Automated PPTX Export** | **FUTURE WORK** | Template-driven PowerPoint presentation builder for executive reporting. | Planned Capability |
 
 ---
 
-## Documents, Files and RAG
+## Sovereign Local-Only Architecture
 
-HELIOS processes local user files:
+HELIOS enforces a strict sovereign boundary for confidential industrial environments:
 
-- **File Parsing**: Extracts text from `.pdf`, `.docx`, `.txt`, `.md`, `.json`, `.csv`, and `.py`.
-- **PDF Generation**: Converts document files (`.docx`, `.txt`, `.md`) to `.pdf` using ReportLab.
-- **Local RAG**: `LocalRAGConnector` indexes local note files and retrieves relevant knowledge snippets for grounded answer generation.
+1. **On-Premise LLM Inference**: All AI model reasoning is executed locally via Ollama on `http://localhost:11434`. No external API calls are dispatched during sovereign execution.
+2. **On-Device OCR & Document Processing**: Scanned PDF inspection reports and images are processed locally using RapidOCR (ONNX runtime) and OpenCV.
+3. **Local Knowledge Base (RAG)**: SOP manuals and engineering guidelines are indexed and searched strictly on local disk.
+4. **Isolated Code Sandbox**: Python analysis scripts run in a bounded subprocess with AST safety screening and zero network access.
+5. **Application-Enforced Egress Guard**: The `NetworkAuditMonitor` intercepts request attempts. In `LOCAL_ONLY` mode, non-localhost outbound requests are **blocked before execution**.
+6. **Redacted Audit Telemetry**: Execution telemetry, routing decisions, policy enforcement, and model latencies are logged to `data/audit/network_audit.jsonl` with automatic credential scrubbing.
 
----
-
-## Web Search
-
-- **Primary Provider**: Tavily API for structured live web search and product extraction.
-- **Fallback Provider**: DuckDuckGo Search (`ddgs`) fallback when Tavily is unconfigured.
-- **Browser Launch**: Opens verified product pages and search queries directly in the user's default web browser.
-
----
-
-## Voice Input
-
-- **Asynchronous STT**: SpeechRecognition listener integrated into the UI input dock.
-- **Voice-to-Command Routing**: Transcribes spoken audio into text and passes it directly to the Orchestrator for intent processing.
+> **Precise Sovereign Positioning**:
+> - Application-enforced local-only execution is verified.
+> - **0 external requests were executed in the verified local-mode test suite**.
+> - Localhost Ollama communication (`http://localhost:11434`) is permitted for open-weight model inference.
+> - Cloud AI is not the inference engine in sovereign mode.
 
 ---
 
-## Notes and Reminders
+## CAHRA — Task-Aware Model Routing
 
-- **Notes Management**: `NotesManager` provides CRUD operations for local notes saved in `data/notes/`.
-- **Task Scheduler**: `TaskScheduler` (APScheduler) handles one-time reminders and background cron jobs.
+The **Context Aware Hybrid Routing Algorithm (CAHRA)** dynamically selects the optimal open-weight model for each request based on capability requirements and hardware constraints.
+
+### 1. Routing Mechanics
+- **Eligible Model Filtering**: Scans active local models (`gemma3`, `mistral`, `llama3`) and filters candidates matching task constraints.
+- **Capability Constraints**: Evaluates system RAM and VRAM availability. Applies a -30% complexity penalty for low system RAM (<4GB available) and a -40% latency penalty for CPU-only execution.
+- **Task-Aware Selection**: Evaluates incoming intent against task archetypes (`industrial_workflow`, `code_execution`, `document_analysis`, `general_chat`).
+- **Weighted Utility Scoring**: Computes a multi-dimensional utility score:
+  $$U = w_p \cdot R_p + w_f \cdot R_f + w_c \cdot R_c + w_l \cdot S_{\text{latency}} + w_k \cdot S_{\text{cost}}$$
+  where $R_p$ is Privacy Score, $R_f$ is Freshness Score, $R_c$ is Complexity Score, $S_{\text{latency}}$ is estimated response time, and $S_{\text{cost}}$ is token expenditure score.
+- **Candidate Fallback**: If a primary model fails to respond or is resource-constrained, CAHRA seamlessly falls back to lighter open-weight candidates (e.g. `gemma3:4b`).
+
+> **Note**: CAHRA optimizes task allocation across registered open-weight models based on empirical benchmarks; it is not claimed to be universally superior to every model under all conditions.
 
 ---
 
-## System Controls
+## Agentic Execution Loop
 
-- **Windows Settings Deep-Linking**: Maps natural language requests directly to Windows OS URI schemes (`ms-settings:display`, `ms-settings:network-wifi`, `ms-settings:bluetooth`, etc.).
-- **System Volume & Brightness**: Controls hardware audio volume and display brightness.
-
----
-
-## Commerce
-
-HELIOS features an end-to-end 14-stage commercial research pipeline:
+HELIOS executes user requests using a structured, state-driven agent loop:
 
 ```text
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌───────────┐     ┌─────────────┐
-│ DISCOVERING │ ──► │ UNDERSTANDING│ ──► │ RESEARCHING │ ──► │ COMPARING │ ──► │ RECOMMENDING│
-└─────────────┘     └──────────────┘     └─────────────┘     └───────────┘     └──────┬──────┘
-                                                                                      │
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌───────────┐            │
-│  AUTHORIZED │ ◄── │ AUTHORIZATION│ ◄── │ TRANSACTION │ ◄── │CALCULATING│ ◄──────────┘
-└──────┬──────┘     │  REQUIRED    │     │  PREPARED   │     └───────────┘
-       │            └──────────────┘     └─────────────┘
+   ┌──────────┐
+   │ OBSERVE  │ ──► Inspects prompt, attached documents, and OS window state
+   └────┬─────┘
+        ▼
+   ┌──────────┐
+   │   PLAN   │ ──► Decomposes task into ordered steps via TaskDecomposer
+   └────┬─────┘
+        ▼
+   ┌──────────┐
+   │ EXECUTE  │ ──► Dispatches actions to local tools (OCR, RAG, Sandbox, FileCreator)
+   └────┬─────┘
+        ▼
+   ┌──────────┐
+   │  VERIFY  │ ──► ActionVerifier checks exit code, stdout, and deliverable existence
+   └────┬─────┘
+        ├──► Verified: Export artifact to ArtifactStore
+        └──► Unverified:
+               ├──► Action Retry: RecoveryEngine executes 1 bounded retry attempt
+               └──► Human Escalation: Transition state to WAITING_FOR_USER
+```
+
+### Distinction Between Agent Recovery & Model Fallback
+- **Agent Recovery (`RecoveryEngine`)**: Action-level self-repair when a local tool or file generation step fails validation (e.g. retrying code sandbox execution with adjusted parameters).
+- **CAHRA Model Fallback**: Infrastructure-level re-routing when an LLM connection times out or encounters resource constraints, switching candidate models.
+
+---
+
+## Multimodal Processing & On-Device OCR
+
+HELIOS processes visual and scanned industrial inputs through an on-device pipeline:
+
+- **Supported Inputs**: Scanned PDF inspection reports, technical schematics, equipment photographs, and printed/handwritten maintenance logs.
+- **RapidOCR Engine**: Uses ONNX runtime models for fast text detection and recognition without external cloud API calls.
+- **OpenCV Pipeline**: Generates 4 localized image pre-processing variants to maximize text extraction accuracy:
+  1. Grayscale Conversion & Contrast Normalization
+  2. Binarization / Thresholding
+  3. Image Upscaling & Noise Reduction
+  4. CLAHE (Contrast Limited Adaptive Histogram Equalization)
+- **Visual Desktop Observation**: The `ScreenObserver` captures active desktop state on demand, enumerating Win32 Z-order windows while explicitly excluding the HELIOS UI overlay from visual inspection.
+
+---
+
+## Local RAG / Industrial SOP Grounding
+
+HELIOS grounds AI reasoning directly in local plant Standard Operating Procedures (SOPs):
+
+- **Lexical Retrieval Engine**: Indexes `.docx`, `.pdf`, `.txt`, and `.md` files stored in `data/` or attached by the user.
+- **Chunking Strategy**: 400-word sliding windows with a 50-word overlap between consecutive chunks.
+- **Keyword Scoring**: Computes match relevance based on term frequency and document position overlap.
+- **Provenance & Citations**: Extracted facts are attached to `ResponseSource` objects, ensuring generated deliverables cite exact file names and section headings.
+
+> **Technical Clarification**: Current HELIOS implementation uses a fast, lightweight **lexical keyword RAG baseline** on local disk. Dense vector embedding search is classified as a future architecture extension.
+
+---
+
+## Sandboxed Code Execution
+
+For numerical calculations, data transformations, and custom script execution, HELIOS uses an isolated Python sandbox ([`core/code_sandbox.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/code_sandbox.py)):
+
+- **AST Safety Screening**: Inspects script Abstract Syntax Trees prior to execution. Rejects prohibited modules (`os.system`, `subprocess`, `shutil`, `socket`, `eval`, `exec`).
+- **Secret Scrubbing**: Scrubs sensitive environment variables and API keys from the subprocess environment before execution.
+- **Execution Boundary**:
+  - Timeout: Strict **5.0-second** execution cap.
+  - Subprocess Isolation: Runs in a dedicated background worker.
+  - Capture & Verification: Captures `stdout`, `stderr`, and `exit_code`. `ActionVerifier` confirms success before passing output to deliverables.
+
+---
+
+## Spreadsheet Analytics
+
+The `SpreadsheetAgent` ([`modules/spreadsheet_agent.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/modules/spreadsheet_agent.py)) provides automated spreadsheet processing:
+
+- **Ingestion**: Reads `.csv` and `.xlsx` files into Pandas DataFrames.
+- **Header Classification & Cleaning**: Automatically identifies column data types, handles missing values, and parses timestamps.
+- **Metrics Computation**: Calculates key operational metrics, unit failure rates, mean operating pressures, and threshold violations.
+- **Summary Workbook Generation**: Produces formatted Excel (`.xlsx`) workbooks complete with summary headers using OpenPyXL.
+
+---
+
+## Industrial Deliverables
+
+HELIOS generates verified, production-ready deliverables saved directly to `data/output/`:
+
+- **Word Documents (`.docx`)**: Formatted Plant Approval Notes, Inspection Executive Summaries, and Emergency Memos using `python-docx`.
+- **Excel Workbooks (`.xlsx`)**: Inspection metric summaries and unit defect analysis workbooks using `openpyxl`.
+- **PDF Documents (`.pdf`)**: Formatted document exports built via ReportLab.
+
+---
+
+## Flagship Industrial Workflow (PSV-301 Relief Valve)
+
+The flagship demonstration scenario validates the full HELIOS capability chain on a Pressure Safety Valve (PSV-301) inspection:
+
+```text
+[Step 1: Scanned Report]  ──► Scanned inspection report image (scanned_inspection_report.png)
+                                 │
+                                 ▼
+[Step 2: RapidOCR Engine] ──► Extracts text: "Inspected Component: Valve PSV-301 | Measured Pressure: 450 PSI"
+                                 │
+                                 ▼
+[Step 3: Local RAG]       ──► Retrieves SOP_Plant_Safety_2026.docx: "Max allowable pressure for PSV-301 = 400 PSI"
+                                 │
+                                 ▼
+[Step 4: Reasoning & SB]  ──► CAHRA routes to local LLM; Code Sandbox calculates 12.5% over-pressure delta
+                                 │
+                                 ▼
+[Step 5: ActionVerifier]  ──► Generates Plant_Approval_Note_PSV301.docx & verifies file integrity
+                                 │
+                                 ▼
+[Deliverable Export]      ──► Verified Word document exported to data/output/
+```
+
+*(Note: PSV-301 inspection metrics represent synthetic demonstration data used for SIH 26117 verification testing).*
+
+---
+
+## Additional Industrial Workflows
+
+1. **Analytical Coding Workflow**:
+   - User inputs a complex mathematical or data processing prompt.
+   - HELIOS generates Python script -> AST safety screen -> Sandboxed execution -> Returns verified numerical result.
+2. **Spreadsheet Inspection Analytics**:
+   - User uploads `inspection_metrics.csv`.
+   - `SpreadsheetAgent` analyzes failure rates -> Generates `inspection_metrics_summary.xlsx`.
+3. **Multimodal Local Knowledge Task**:
+   - User uploads a handwritten maintenance note alongside a machinery manual.
+   - RapidOCR extracts text -> Local RAG matches manual recommendations -> Local LLM outputs combined action plan.
+4. **Document Generation Workflow**:
+   - User requests a formal summary of local SOP updates.
+   - Local LLM synthesizes notes -> `file_creator.py` generates formatted `.docx` and `.pdf` deliverables.
+
+---
+
+## Network Security & Sovereignty
+
+HELIOS provides explicit, audit-verifiable network security controls ([`core/network_audit.py`](file:///d:/HELIOS_FINAL/HELIOS_FINAL/core/network_audit.py)):
+
+- **`LOCAL_ONLY` Policy Enforcement**: When sovereign mode is enabled, outbound network requests to external domains are intercepted and blocked prior to socket creation.
+- **Localhost Exception**: Communication with local services (`http://localhost:11434` for Ollama) is explicitly permitted.
+- **Audit Logging**: Every routing decision, tool execution, and network check is logged to `data/audit/network_audit.jsonl`.
+- **Empirical Evidence**: In the automated compliance test suite (`tests/test_sovereign_network_policy.py`), **0 external network requests were executed**.
+
+```json
+{
+  "timestamp": "2026-10-03T15:59:54Z",
+  "policy": "LOCAL_ONLY",
+  "action": "BLOCKED_BEFORE_REQUEST",
+  "target": "external_live_data",
+  "reason": "LOCAL_ONLY_POLICY",
+  "network_call_executed": false,
+  "bytes_transferred": 0
+}
+```
+
+---
+
+## Enterprise Authorization Model
+
+HELIOS includes a server-side authorization gate design to prevent unauthorized tool execution:
+
+```text
+Authenticated User
+       │
        ▼
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌───────────┐
-│  CHECKOUT   │ ──► │   PAYMENT    │ ──► │  VERIFYING  │ ──► │ VERIFIED  │
-└─────────────┘     └──────────────┘     └─────────────┘     └───────────┘
+   Role Check ──► (e.g. Safety Engineer)
+       │
+       ▼
+Department Check ──► (e.g. Safety Department)
+       │
+       ▼
+Location Boundary ──► (e.g. Hyderabad Plant)  [HARD DATA BOUNDARY]
+       │
+       ▼
+Permission Level ──► (e.g. READ / EXECUTE)
+       │
+       ▼
+  Tool Action ──► ALLOW or DENY
 ```
 
-- **Multi-Merchant Comparison**: Searches across Amazon, Flipkart, Croma, and other platforms to aggregate prices.
-- **Direct Product Page Requirement**: Payment intent preparation requires a verified direct product page URL. Generic search pages or category listings are marked as informational research only.
+### Authorization Rules
+- **Non-LLM Controlled**: Authorization decisions are enforced by hard-coded policy gates, not by LLM prompts.
+- **Hard Location Boundary**: Cross-location resource access (e.g. a Hyderabad user requesting Chennai plant data) is **DENY by default**.
+- **Untrusted Client Location**: Location claims supplied in client headers are strictly untrusted and validated against backend session credentials.
+
+> *Example*:
+> - `Safety Engineer + Safety + Hyderabad + READ` -> Access to Hyderabad Safety SOP: **ALLOW**
+> - `Safety Engineer + Safety + Chennai + READ` -> Access to Hyderabad Safety SOP: **DENY**
+
+*(Note: Plant roles and location schemas serve as illustrative access control models in the engineering prototype).*
 
 ---
 
-## Payment and Payment Security
+## Enterprise Data Continuity (Architecture Extension)
 
-Security boundaries for financial operations are enforced outside LLM control:
+For enterprise deployments requiring disaster recovery and multi-device state synchronization without compromising LLM inference privacy:
 
-```mermaid
-flowchart TD
-    A[LLM Commerce Request] --> B[Price & Product Page Verification]
-    B --> C[TransactionGuard Safety Check]
-    C --> D[Render Payment Preview Card in UI]
-    D --> E[User Explicitly Clicks Authorize Button]
-    E --> F[HMAC-SHA256 Payload Signature Verification]
-    F --> G[Razorpay Sandbox Order Creation]
-    G --> H[Verified Payment Receipt Issued]
-
-    style A fill:#1e1e2e,stroke:#74c7ec,color:#fff
-    style D fill:#313244,stroke:#f9e2af,color:#fff
-    style E fill:#2d4f3e,stroke:#a6e3a1,color:#fff
-    style H fill:#253759,stroke:#89b4fa,color:#fff
+```text
+Local HELIOS Environment
+       │
+       ├─ 1. Classify Document (PUBLIC / INTERNAL / CONFIDENTIAL / HIGHLY_SENSITIVE)
+       ├─ 2. Validate User Authorization & Location Access
+       ├─ 3. Generate SHA-256 Checksum & Version Tag
+       │
+       ▼
+Approved Backup Pipeline (Policy-Controlled)
+       │
+       ▼
+Enterprise Data Continuity Layer (Supabase PostgreSQL + RLS + Encrypted Storage)
+       │
+       ▼
+Authorized Disaster Recovery ──► Restores data to local HELIOS for local LLM processing
 ```
 
-- **Explicit User Click Authorization**: The LLM **cannot** directly trigger a payment transaction. The user must physically click the **Authorize Payment** button on the UI preview card.
-- **TransactionGuard Controls**:
-  - **Amount Threshold Cap**: Limits single transactions to a configured maximum (default: ₹10,000 INR).
-  - **Idempotency Protection**: Prevents duplicate payment submissions.
-  - **HMAC-SHA256 Signature Verification**: Validates transaction payload integrity.
-  - **Razorpay Sandbox Mode**: Executes orders in provider sandbox/test mode to prevent unintended charges.
+### Key Principles
+- **Separation of Inference & Continuity**: Supabase serves as a controlled enterprise data-continuity layer. **Supabase is NOT the LLM inference engine**. Local AI inference remains 100% on-premise.
+- **Policy-Controlled Backup**: Files classified as `HIGHLY_SENSITIVE` remain local-only and are excluded from cloud continuity.
+- **No Automatic Uploads**: HELIOS does not automatically upload local workspace files.
+- **Server-Side Credentials**: Service-role keys remain strictly server-side.
 
 ---
 
-## Privacy
+## Industrial Incident / Accident Data Continuity (Architecture Extension)
 
-- **Local-First Processing**: Sensitive prompts and local file indexing remain on the local machine.
-- **Demand-Driven Capture**: Screenshot data is captured only when visually required and authorized.
-- **Secret Masking**: API keys, payment tokens, and authorization headers are masked in log files and diagnostic UI displays.
+- **Planned Capability**: Enterprise continuity schema for industrial incident and accident records.
+- **Security Scope**: Incident logs are classified as `CONFIDENTIAL` or `HIGHLY_SENSITIVE`, requiring multi-factor role authorization, location-based Row Level Security, and encrypted payload storage.
+- **Status Notice**: **Architecture Extension / Planned Enterprise Capability — not yet a deployed module in the current baseline codebase.**
 
 ---
 
-## Architecture
+## Deployment & Reference Hardware
+
+| Environment | CPU Cores | System RAM | GPU VRAM | Storage | Model Capability |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **Prototype Reference** *(Engineering Baseline)* | 4 – 8 Cores | 16 – 32 GB | 6 – 12 GB *(RTX 3060/4060)* | 250 GB+ SSD | Runs `gemma3:4b` & `mistral:7b` locally via Ollama. |
+| **Production Scale** *(Enterprise Deployment)* | 8 – 16+ Cores | 32 – 64+ GB | 12 – 24+ GB *(RTX 4090/A4000)* | 1 TB+ NVMe | Concurrent local inference (`llama3:8b`/`mistral:7b`) + local OCR. |
+
+*(Note: Actual hardware requirements scale with model parameter size, context window length, request concurrency, and document volume).*
+
+---
+
+## Security Model
+
+HELIOS implements a layered security defense model:
+1. **Local-Only Boundary**: Application-enforced egress blocking in sovereign mode.
+2. **Sandbox Subprocess**: Python AST inspection, secret scrubbing, and 5s execution caps.
+3. **Output Containment**: Verification of exit codes and stdout before deliverable export.
+4. **Deterministic Authorization**: Non-LLM role, department, and location policy checks.
+5. **Audit Logging**: Redacted JSONL log of all system actions (`data/audit/network_audit.jsonl`).
+6. **Credential Protection**: Environment variables scrubbed before code execution; service keys protected.
+
+---
+
+## Empirical Verification & Benchmark Results
+
+The HELIOS implementation has been rigorously validated across multiple empirical test suites:
+
+### 1. SIH 26117 Automated Acceptance Suite (`tests/sih_26117_compliance_validation.py`)
+- **Result**: **19 / 19 Requirements PASSED (100.0% Compliance)**.
+- Validated: Secret scrubbing, open-weight models, CAHRA routing, persistent session, sandboxed code execution, local tool suite, RapidOCR, deliverable creation (DOCX/XLSX), local RAG grounding, flagship inspection workflow, sovereign network audit, and spreadsheet processing.
+
+### 2. Sovereign Network Policy Test (`tests/test_sovereign_network_policy.py`)
+- **Result**: **12 / 12 Tests PASSED**.
+- Confirmed: **0 external requests executed during sovereign mode execution**.
+
+### 3. Controlled 30-Task Coding Evaluation
+Evaluated across a controlled 30-task coding benchmark comparing local models and CAHRA routing versions:
+
+| Model / Routing Configuration | Tasks Completed | Pass Rate | Adaptive Fallback Behavior |
+| :--- | :---: | :---: | :--- |
+| **Mistral 7B** (Direct) | 29 / 30 | 96.7% | N/A |
+| **Gemma 3 4B** (Direct) | 30 / 30 | 100.0% | N/A |
+| **CAHRA v1** | 30 / 30 | 100.0% | Static routing |
+| **CAHRA v2** (No Fallback) | 29 / 30 | 96.7% | Fallback disabled |
+| **CAHRA v2** (With Adaptive Fallback) | 30 / 30 | 100.0% | Recovered 1 unique-success task via adaptive candidate fallback |
+
+*(Note: Evaluated on a controlled 30-task benchmark; routing overhead measurements are distinct from LLM inference latency).*
+
+---
+
+## Technology Stack
+
+- **Core Logic & Orchestration**: Python 3.10+, PyWin32, APScheduler.
+- **Local Model Engine**: Ollama (`gemma3`, `mistral`, `llama3`).
+- **OCR & Computer Vision**: RapidOCR (ONNX runtime), OpenCV.
+- **Data & Analytics**: Pandas, OpenPyXL.
+- **Deliverable Generators**: `python-docx` (Word), ReportLab (PDF), OpenPyXL (Excel).
+- **Web Interface**: Next.js 16, React 19, Tailwind CSS.
+- **Desktop UI**: Custom PyQt / Tkinter floating glass dock.
+- **Enterprise Continuity Architecture**: Supabase PostgreSQL, Row Level Security (RLS), Storage.
+
+---
+
+## Repository Structure
 
 ```text
 HELIOS_FINAL/
-├── core/                       # Core decision, routing, commerce, and security engines
-│   ├── commerce/               # Multi-merchant search, price comparison & product models
-│   ├── desktop_session/        # Win32 screen observer, Z-order window resolver & session state
-│   ├── payments/               # Razorpay bridge, TransactionGuard & payment authorization
-│   ├── routing/                # CAHRA hybrid router, score engine & constraint engine
-│   ├── action_verifier.py      # Desktop action execution verifier
+├── app/                        # Next.js 16 Web Application pages & styles
+│   ├── globals.css             # Design tokens, variables & glassmorphism CSS
+│   ├── layout.tsx              # Application layout container
+│   └── page.tsx                # Main workbench page router
+├── components/                 # React UI Components
+│   ├── ChatWorkspace.tsx       # Live chat & streaming response renderer
+│   ├── FeatureCards.tsx        # Quick capability feature cards
+│   ├── Header.tsx              # Glass header & mode indicator
+│   ├── InputSection.tsx        # Command input section & action chips
+│   ├── NavigationRail.tsx      # Sidebar navigation rail
+│   └── RightSidebar.tsx        # System health & model status panel
+├── core/                       # Core decision, routing, and security engines
+│   ├── routing/                # CAHRA routing engine, score engine & capability matrix
+│   ├── action_verifier.py      # Desktop action & execution verifier
 │   ├── code_sandbox.py         # Isolated Python execution sandbox
-│   ├── context_resolver.py     # Conversation memory & context dependency engine
-│   ├── llm_engine.py           # Hybrid LLM engine (Ollama, Gemini, OpenAI, Groq, OpenRouter)
-│   ├── local_rag.py            # Local document RAG connector
-│   ├── nl_router.py            # Fast pre-LLM regex router & intent shortcuts
-│   └── ocr_provider.py         # Local RapidOCR / Tesseract abstraction
-├── modules/                    # Practical capability modules
-│   ├── browser_agent.py        # Web search & Playwright browser tasks
-│   ├── desktop_agent.py        # OS application control & file system operations
+│   ├── execution_state.py      # Execution event state & telemetry model
+│   ├── llm_engine.py           # Local Ollama & cloud LLM connectors
+│   ├── local_rag.py            # Lexical local document RAG connector
+│   ├── network_audit.py        # Sovereign network policy & JSONL auditor
+│   ├── ocr_provider.py         # On-device RapidOCR & OpenCV image pipeline
+│   └── task_decomposer.py      # 5-step industrial task planner
+├── modules/                    # Capability modules
+│   ├── desktop_agent.py        # OS application control & file operations
 │   ├── document_processor.py   # Document text extraction & PDF generation
-│   ├── notes_manager.py        # Local notes CRUD operations
+│   ├── file_creator.py         # Automated DOCX Plant Approval Note builder
 │   ├── spreadsheet_agent.py    # Excel & CSV analytics engine
-│   ├── system_controls.py      # Windows Settings & system control dispatcher
-│   └── voice_input.py          # Asynchronous speech-to-text STT listener
-├── ui/                         # Custom Tkinter glass UI suite
-│   ├── chat_view.py            # Elevated glass response cards & streaming renderer
-│   ├── header.py               # Glass header, 5-sphere avatar & model selector
-│   ├── input_panel.py          # Command dock with file attachment & Screen Context toggle
-│   ├── models_panel.py         # Model selection & management panel
-│   └── theme.py                # Design tokens & color system
-├── config/                     # Application routing rules & configuration files
-├── data/                       # Sample demonstration datasets & local storage
-├── docs/                       # Architecture documentation & technical reports
-│   └── images/                 # Real-time execution screenshots
+│   └── voice_input.py          # Speech-to-text STT listener
+├── data/                       # Local datasets, SOPs & output store
+│   ├── audit/                  # Sovereign network audit JSONL logs
+│   ├── diagnostics/            # CAHRA routing diagnostics JSON snapshots
+│   ├── output/                 # Generated deliverables (DOCX, XLSX, PDF)
+│   └── SOP_Plant_Safety_2026.docx # Sample industrial safety SOP
+├── docs/                       # Technical documentation & guidebooks
+│   └── guidebooks/             # SIH 26117 architecture, metrics & traceability reports
+├── tests/                      # Automated test suite
+│   ├── sih_26117_compliance_validation.py # 19-point SIH acceptance suite
+│   ├── test_cahra_v2.py        # CAHRA v2 routing engine tests
+│   ├── test_response_ux_integration.py   # Response UX & model identity tests
+│   └── test_sovereign_network_policy.py  # Sovereign network audit tests
 ├── agent.py                    # HELIOSAgent Orchestrator controller
-├── main.py                     # Main application entry point
-├── helios_popup.py             # Full desktop UI application setup
+├── helios_api.py               # FastAPI backend server for Web UI
+├── helios_popup.py             # Custom desktop UI application setup
+├── main.py                     # CLI entry point
+├── package.json                # Next.js web application manifest
 ├── requirements.txt            # Python dependency manifest
-├── .env.example                # Environment configuration template
-├── .gitignore                  # Git repository ignore rules
-└── README.md                   # System documentation
+└── README.md                   # Technical source of truth
 ```
 
 ---
 
-## Project Structure
-
-- `core/`: Main decision-making, routing, commerce, payment, and security logic.
-- `modules/`: Practical capability modules for desktop control, OCR, documents, spreadsheets, and voice.
-- `ui/`: Custom Tkinter desktop user interface with glassmorphism styling.
-- `config/`: Application configuration and routing rule matrices.
-- `data/`: Sample datasets and local storage folders.
-- `docs/`: Technical documentation and screenshot assets.
-
----
-
-## Installation
+## Installation & Setup
 
 ### Prerequisites
 - **Operating System**: Windows 10 / 11 (64-bit)
-- **Python**: Python 3.10 or higher
-- **Local LLM (Optional)**: [Ollama](https://ollama.com/) with `gemma3` model (`ollama pull gemma3`)
+- **Python**: Python 3.10+
+- **Node.js**: Node.js 18+ (for Web UI)
+- **Local Model Runner**: [Ollama](https://ollama.com/) with `gemma3` model (`ollama pull gemma3`)
 
-### Setup Instructions
+### 1. Clone & Setup Python Environment
+```bash
+git clone https://github.com/Bharath-723/HELIOS-Agent.git
+cd HELIOS-Agent
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/Bharath-723/HELIOS-Agent.git
-   cd HELIOS-Agent
-   ```
+python -m venv venv
+.\venv\Scripts\activate
 
-2. **Create a Virtual Environment**:
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate
-   ```
+pip install -r requirements.txt
+```
 
-3. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 2. Configure Environment
+```bash
+copy .env.example .env
+```
+Ensure `SOVEREIGN_MODE=true` and `OLLAMA_BASE_URL=http://localhost:11434` for local-only execution.
 
-4. **Configure Environment**:
-   ```bash
-   copy .env.example .env
-   ```
-   Edit `.env` to supply your API keys (Gemini, OpenRouter, Tavily, etc.) if cloud capabilities are desired.
+### 3. Launch Backend API Server
+```bash
+python helios_api.py
+```
+*(Runs on `http://127.0.0.1:8000`).*
 
-5. **Launch HELIOS**:
-   ```bash
-   python main.py
-   ```
+### 4. Launch Next.js Web UI
+In a separate terminal:
+```bash
+npm install
+npm run dev
+```
+*(Open `http://localhost:3000` in your browser).*
+
+### 5. Launch CLI / Desktop Dock
+```bash
+python main.py
+```
 
 ---
 
 ## Configuration
 
-Key environment variables in `.env`:
+Key environment settings in `.env`:
 
-| Variable | Required / Optional | Description | Default |
-|---|---|---|---|
-| `OLLAMA_BASE_URL` | Optional | URL for local Ollama server | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Optional | Default local Ollama model | `gemma3` |
-| `LLM_MODE` | Required | Model routing mode (`auto`, `offline`, `online`) | `auto` |
-| `CLOUD_PROVIDER` | Optional | Cloud provider choice (`gemini`, `gpt`, `groq`, `openrouter`) | `gemini` |
-| `GEMINI_API_KEY` | Optional | Google Gemini API key | `your_gemini_api_key_here` |
-| `GEMINI_MODEL` | Optional | Gemini model identifier | `gemini-3.6-flash` |
-| `OPENROUTER_ENABLED`| Optional | Enable OpenRouter cloud LLM | `true` |
-| `TAVILY_API_KEY` | Optional | Tavily web search API key | `your_tavily_api_key_here` |
-| `RAZORPAY_MODE` | Optional | Payment sandbox mode | `sandbox` |
-| `MAX_PAYMENT_AMOUNT_INR` | Optional | Max transaction safety threshold | `10000` |
+| Variable | Mode | Description | Default |
+| :--- | :---: | :--- | :--- |
+| `SOVEREIGN_MODE` | `LOCAL_ONLY` | Forces local execution; blocks external cloud requests. | `true` |
+| `OLLAMA_BASE_URL` | `LOCAL_ONLY` | Ollama local API endpoint. | `http://localhost:11434` |
+| `OLLAMA_MODEL` | `LOCAL_ONLY` | Default local open-weight LLM. | `gemma3` |
+| `LLM_MODE` | Hybrid | Model routing mode (`auto`, `offline`, `online`). | `auto` |
+| `CLOUD_PROVIDER` | Optional | Cloud LLM provider (`gemini`, `openrouter`). | `gemini` |
+| `GEMINI_API_KEY` | Optional | API key for Gemini (disabled in Sovereign mode). | `your_key_here` |
+| `SUPABASE_URL` | Continuity | Supabase project URL (Enterprise Backup Layer). | `https://xyz.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Continuity | Server-side service key for encrypted backup. | `your_service_key` |
 
 ---
 
-## Usage Examples
+## Detailed Industrial Workflow Example
 
-### Example 1: General Question
-```text
-User: "What is 25 * 48?"
-HELIOS: "1200"
-```
+**Scenario**: A refinery safety engineer inspects Relief Valve PSV-301 and uploads the scanned report image (`scanned_inspection_report.png`).
 
-### Example 2: Desktop Settings
-```text
-User: "Open Wi-Fi settings"
-HELIOS: "Opened Wi-Fi Settings."
-```
-
-### Example 3: Screen Observation (Screen Context: ON)
-```text
-User: "What can you see on my desktop?"
-HELIOS: "🖥️ Screen Observation [Google Chrome]: Currently observing Google Chrome..."
-```
-
-### Example 4: Document Reading & PDF Conversion
-```text
-User: "Convert report.docx into a PDF file"
-HELIOS: "Successfully converted 'report.docx' to PDF -> report.pdf"
-```
-
-### Example 5: Commerce Research & Price Comparison
-```text
-User: "Search for a todo book on all shopping platforms"
-HELIOS: "🛍️ Research & Recommendation for Todo Book:
-Recommended: Daily Task Planner & Todo Journal
-Price: ₹299.00 (Search-result price) | Merchant: Amazon.in
-Merchant Offer Comparison:
-  • Amazon.in: ₹299.00
-  • Flipkart.com: ₹349.00"
-```
+1. **User Command**:
+   > *"Analyze the attached PSV-301 inspection report and prepare an approval note using the applicable local SOP."*
+2. **On-Device OCR**: RapidOCR extracts: `Inspected Component: Valve PSV-301 | Measured Pressure: 450 PSI`.
+3. **Local RAG Grounding**: `LocalRAGConnector` searches `SOP_Plant_Safety_2026.docx` and retrieves: `Section 4.2: Relief valve PSV-301 maximum operating pressure limit is 400 PSI`.
+4. **CAHRA Routing & Reasoning**: CAHRA selects `gemma3` locally. The LLM identifies that 450 PSI exceeds the 400 PSI safety threshold by 50 PSI (12.5%).
+5. **Sandboxed Calculation**: `CodeSandbox` executes:
+   ```python
+   observed = 450
+   limit = 400
+   delta_pct = ((observed - limit) / limit) * 100
+   print(f"OVER_PRESSURE: {delta_pct:.2f}%")
+   ```
+   *Output*: `OVER_PRESSURE: 12.50%` (Exit Code 0).
+6. **Action Verification & Deliverable Creation**: `ActionVerifier` validates output. `file_creator.py` generates `Plant_Approval_Note_PSV301.docx` containing formal findings, SOP citations, and recommended maintenance actions.
+7. **Artifact Export**: Delivered to `data/output/Plant_Approval_Note_PSV301.docx`.
 
 ---
 
-## System Scope & Environment Requirements
+## Limitations & System Scope
 
-- **Windows OS Dependency**: Desktop window enumeration and UI automation rely on native Windows Win32 APIs.
-- **Local Model Hardware**: Performance of local Ollama models depends on available CPU/GPU and RAM resources.
-- **OCR Resolution Scope**: RapidOCR text extraction accuracy depends on screen resolution, text size, and font rendering.
-- **Dynamic Web Sites**: Web search parsing depends on search provider API structure.
+- **Industrial Safety Boundary**: HELIOS is an AI decision-support workbench; it does not replace certified plant safety engineers or formal human sign-off procedures.
+- **OCR & Vision Scope**: RapidOCR text extraction accuracy depends on scan resolution, contrast, and font clarity.
+- **Lexical RAG Scope**: Current retrieval uses a fast lexical keyword matching baseline; dense vector embeddings are classified as an architecture extension.
+- **Voice Input Scope**: Speech-to-text relies on Windows speech APIs with known background noise caveats.
+- **Enterprise Continuity**: Supabase integration represents an enterprise data-continuity architecture specification, not an active cloud LLM inference engine.
 
 ---
 
