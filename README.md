@@ -137,8 +137,6 @@ The following diagram illustrates the complete HELIOS system architecture, showi
 
 ---
 
-![HELIOS Desktop Interface](docs/images/helios-main-page.jpg)
-
 
 ## Feature Implementation Matrix
 
